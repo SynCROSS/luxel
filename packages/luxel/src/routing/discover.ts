@@ -1,8 +1,7 @@
-import { access } from "node:fs/promises";
-import { join } from "node:path";
-import { generateCounterManifest } from "../manifest/generate.ts";
+import { compileCounterApp } from "../route/compile-app.ts";
+import type { Manifest } from "../manifest/types.ts";
 
-export async function discoverManifest(routesDir: string) {
-  await access(join(routesDir, "index.luxel"));
-  return generateCounterManifest();
+export async function discoverManifest(_routesDir: string, repoRoot: string): Promise<Manifest> {
+  const app = await compileCounterApp(repoRoot);
+  return app.manifest;
 }

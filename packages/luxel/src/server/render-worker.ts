@@ -1,15 +1,26 @@
-import { load, renderSsrDocument, type CounterLoadData } from "../route/counter.ts";
-
+import type { CompiledApp } from "../route/compile-app.ts";
 export interface RenderWorker {
-  renderIndex(): Promise<{ html: string; data: CounterLoadData }>;
+  render(path: string): Promise<{ html: string; data: Record<string, unknown> }>;
+  renderStream(path: string): Promise<{ stream: ReadableStream<Uint8Array>; data: Record<string, unknown> }>;
+  renderIndex(): Promise<{ html: string; data: Record<string, unknown> }>;
 }
 
-export function createRenderWorker(): RenderWorker {
+export function createRenderWorker(app: CompiledApp): RenderWorker {
   return {
+    async render(path) {
+      const route = app.getRoute(path);
+      if (!route) throw new Error(`unknown route: ${path}`);
+      const data = await route.load();
+      return { html: route.renderDocument(data), data };
+    },
+    async renderStream(path) {
+      const route = app.getRoute(path);
+      if (!route) throw new Error(`unknown route: ${path}`);
+      const data = await route.load();
+      return { stream: route.renderStream(data), data };
+    },
     async renderIndex() {
-      const data = await load();
-      const html = renderSsrDocument(data);
-      return { html, data };
+      return this.render("/");
     },
   };
 }

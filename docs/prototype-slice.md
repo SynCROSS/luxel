@@ -114,7 +114,6 @@ Inspectability contract for routes, render mode, hydration, and asset refs.
         }
       ],
       "assets": {
-        "css": "assets/index.<hash>.css",
         "client": "assets/client.<hash>.js"
       }
     }
@@ -122,8 +121,7 @@ Inspectability contract for routes, render mode, hydration, and asset refs.
   "components": [
     {
       "id": "sfc:index",
-      "source": "examples/counter/src/routes/index.luxel",
-      "cssAsset": "assets/index.<hash>.css"
+      "source": "examples/counter/src/routes/index.luxel"
     }
   ]
 }
@@ -146,13 +144,19 @@ Buffered HTML for prototype. Streaming chunks deferred.
   <head>
     <meta charset="utf-8" />
     <title>Luxel</title>
-    <link rel="stylesheet" href="/assets/index.<hash>.css" />
+    <style>
+      button {
+        font: inherit;
+        min-width: 44px;
+        min-height: 44px;
+      }
+    </style>
   </head>
   <body>
     <main data-luxel-route="/">
       <h1>Hello Luxel</h1>
       <!-- luxel:boundary-start id="boundary:0" directive="load" -->
-      <button type="button" data-luxel-text="count">0</button>
+      <section><button type="button" data-luxel-text="count">0</button></section>
       <!-- luxel:boundary-end id="boundary:0" -->
     </main>
 
@@ -172,7 +176,8 @@ Rules:
 - Template text escaped by default.
 - `luxel-data` = serialized `load()` result only.
 - `luxel-hydration` = boundary metadata only; JSON, not JS.
-- Boundary markers are minimal hydration anchors.
+- Boundary markers wrap the `hydrate:*` host element; client `hydrateRoute` resolves the host from markers + `luxel-hydration.boundaries[]` (not `closest("main")`).
+- SFC `<style>` is emitted as `<style>` in `<head>` during the prototype slice; per-route CSS asset files are deferred.
 - `data-luxel-text` / `data-luxel-attr` / `data-luxel-event` allowed on SSR nodes when needed by attach ops.
 
 ### Client entry shape

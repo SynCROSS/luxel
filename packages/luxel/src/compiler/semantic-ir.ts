@@ -45,7 +45,7 @@ export function compileSemanticIr(source: string): SemanticIr {
   };
 }
 
-function classifyExpr(raw: string): TemplateExpr {
+export function classifyExpr(raw: string): TemplateExpr {
   if (/^["'`]/.test(raw) || /^-?\d+(\.\d+)?$/.test(raw)) {
     return { kind: "literal", raw };
   }

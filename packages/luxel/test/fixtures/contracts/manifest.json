@@ -17,7 +17,6 @@
         }
       ],
       "assets": {
-        "css": "assets/index.dev0.css",
         "client": "assets/client.dev0.js"
       }
     }
@@ -25,8 +24,7 @@
   "components": [
     {
       "id": "sfc:index",
-      "source": "examples/counter/src/routes/index.luxel",
-      "cssAsset": "assets/index.dev0.css"
+      "source": "examples/counter/src/routes/index.luxel"
     }
   ]
 }

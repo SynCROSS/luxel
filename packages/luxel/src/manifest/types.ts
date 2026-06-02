@@ -13,11 +13,11 @@ export type Manifest = {
       directive: string;
       componentId: string;
     }>;
-    assets: { css: string; client: string };
+    assets: { client: string; css?: string };
   }>;
   components: Array<{
     id: string;
     source: string;
-    cssAsset: string;
+    cssAsset?: string;
   }>;
 };

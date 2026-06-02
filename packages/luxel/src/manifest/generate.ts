@@ -1,6 +1,11 @@
 import type { Manifest } from "./types.ts";
-import { ASSET_CLIENT, ASSET_CSS } from "../route/counter.ts";
+import type { CompiledRoute } from "../compiler/compile-route.ts";
 
+export function manifestFromCompiled(compiled: CompiledRoute): Manifest {
+  return compiled.manifest;
+}
+
+/** @deprecated Use manifestFromCompiled after compileRoute */
 export function generateCounterManifest(): Manifest {
   return {
     version: 1,
@@ -20,17 +25,13 @@ export function generateCounterManifest(): Manifest {
             componentId: "sfc:index",
           },
         ],
-        assets: {
-          css: `assets/${ASSET_CSS}`,
-          client: `assets/${ASSET_CLIENT}`,
-        },
+        assets: { client: "assets/client.dev0.js" },
       },
     ],
     components: [
       {
         id: "sfc:index",
         source: "examples/counter/src/routes/index.luxel",
-        cssAsset: `assets/${ASSET_CSS}`,
       },
     ],
   };

@@ -1,0 +1,19 @@
+<template>
+  <h1>{message}</h1>
+  <p>{blurb}</p>
+</template>
+
+<script>
+export async function load() {
+  return {
+    message: "About Luxel",
+    blurb: "Static about page for multi-route prototype.",
+  };
+}
+</script>
+
+<style scoped>
+p {
+  margin: 0;
+}
+</style>

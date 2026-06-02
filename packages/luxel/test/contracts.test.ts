@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { join } from "node:path";
 import {
   loadLuxelDataContract,
   loadLuxelHydrationContract,
@@ -10,16 +11,27 @@ import {
   assertSsrContainsRequiredParts,
   assertSsrDocumentMatches,
 } from "../src/contracts/assert.ts";
-import { generateCounterManifest } from "../src/manifest/generate.ts";
+import { compileCounterApp } from "../src/route/compile-app.ts";
 import { createRenderWorker } from "../src/server/render-worker.ts";
 
+const repoRoot = join(import.meta.dir, "../../..");
+
 describe("artifact contracts", () => {
-  test("golden manifest matches generator", () => {
-    assertManifestMatches(generateCounterManifest(), loadManifestContract());
+  test("golden manifest includes counter index route", async () => {
+    const app = await compileCounterApp(repoRoot);
+    const golden = loadManifestContract();
+    const index = app.manifest.routes.find((r) => r.id === "route:index");
+    const goldenIndex = golden.routes.find((r) => r.id === "route:index");
+    expect(index).toBeDefined();
+    assertManifestMatches(
+      { version: 1, routes: [index!], components: [app.manifest.components.find((c) => c.id === "sfc:index")!] },
+      { version: 1, routes: [goldenIndex!], components: [golden.components.find((c) => c.id === "sfc:index")!] },
+    );
   });
 
   test("render worker SSR matches golden document", async () => {
-    const worker = createRenderWorker();
+    const app = await compileCounterApp(repoRoot);
+    const worker = createRenderWorker(app);
     const { html } = await worker.renderIndex();
     assertSsrDocumentMatches(html, loadSsrContract());
     assertSsrContainsRequiredParts(html);

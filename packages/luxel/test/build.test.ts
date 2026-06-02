@@ -11,7 +11,16 @@ describe("luxel build", () => {
   test("emits manifest and assets", async () => {
     const outDir = await buildApp(repoRoot, "examples/counter");
     const manifest = JSON.parse(await readFile(join(outDir, "manifest.json"), "utf8"));
-    assertManifestMatches(manifest, loadManifestContract());
+    expect(manifest.routes).toHaveLength(2);
+    const golden = loadManifestContract();
+    const index = manifest.routes.find((r: { id: string }) => r.id === "route:index");
+    const goldenIndex = golden.routes.find((r) => r.id === "route:index");
+    assertManifestMatches(
+      { version: 1, routes: [index], components: [manifest.components.find((c: { id: string }) => c.id === "sfc:index")] },
+      { version: 1, routes: [goldenIndex], components: [golden.components.find((c) => c.id === "sfc:index")] },
+    );
+    const about = manifest.routes.find((r: { id: string }) => r.id === "route:about");
+    expect(about?.path).toBe("/about");
     const js = await readFile(join(outDir, "assets", "client.dev0.js"));
     expect(js.byteLength).toBeGreaterThan(100);
   });

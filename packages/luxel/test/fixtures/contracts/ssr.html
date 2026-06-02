@@ -3,13 +3,19 @@
   <head>
     <meta charset="utf-8" />
     <title>Luxel</title>
-    <link rel="stylesheet" href="/assets/index.dev0.css" />
+    <style>
+      button {
+        font: inherit;
+        min-width: 44px;
+        min-height: 44px;
+      }
+    </style>
   </head>
   <body>
     <main data-luxel-route="/">
       <h1>Hello Luxel</h1>
       <!-- luxel:boundary-start id="boundary:0" directive="load" -->
-      <button type="button" data-luxel-text="count">0</button>
+      <section><button type="button" data-luxel-text="count">0</button></section>
       <!-- luxel:boundary-end id="boundary:0" -->
     </main>
 

@@ -3,6 +3,8 @@ export { assertManifestMatches, assertSsrDocumentMatches } from "./contracts/ass
 export { createRenderWorker } from "./server/render-worker.ts";
 export { createAppFetch } from "./server/handler.ts";
 export { generateCounterManifest } from "./manifest/generate.ts";
+export { compileRoute } from "./compiler/compile-route.ts";
+export { compileCounterApp } from "./route/compile-app.ts";
 export { compileSemanticIr } from "./compiler/semantic-ir.ts";
 export { buildApp } from "./build/build-app.ts";
 export { runCounterBench } from "./bench/counter.ts";
