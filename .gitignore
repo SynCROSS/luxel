@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.turbo/
+.cache/
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+coverage/
+.luxel/
