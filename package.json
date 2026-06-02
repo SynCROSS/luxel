@@ -1,0 +1,13 @@
+{
+  "name": "luxel-monorepo",
+  "private": true,
+  "workspaces": ["packages/*", "examples/*"],
+  "scripts": {
+    "test": "bun test packages/luxel/test",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0",
+    "@types/bun": "latest"
+  }
+}

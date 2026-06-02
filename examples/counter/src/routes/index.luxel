@@ -1,0 +1,25 @@
+<template>
+  <h1>{message}</h1>
+  <section hydrate:load>
+    <button type="button" on:click={increment}>{count}</button>
+  </section>
+</template>
+
+<script>
+export async function load() {
+  return { message: "Hello Luxel" };
+}
+
+const count = signal(0);
+function increment() {
+  count.value++;
+}
+</script>
+
+<style scoped>
+button {
+  font: inherit;
+  min-width: 44px;
+  min-height: 44px;
+}
+</style>

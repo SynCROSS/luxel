@@ -1,0 +1,11 @@
+{
+  "name": "@luxel/bench",
+  "version": "0.0.0",
+  "type": "module",
+  "dependencies": {
+    "@luxel/luxel": "workspace:*"
+  },
+  "scripts": {
+    "bench": "bun run src/run.ts"
+  }
+}

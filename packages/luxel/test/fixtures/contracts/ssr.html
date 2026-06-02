@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Luxel</title>
+    <link rel="stylesheet" href="/assets/index.dev0.css" />
+  </head>
+  <body>
+    <main data-luxel-route="/">
+      <h1>Hello Luxel</h1>
+      <!-- luxel:boundary-start id="boundary:0" directive="load" -->
+      <button type="button" data-luxel-text="count">0</button>
+      <!-- luxel:boundary-end id="boundary:0" -->
+    </main>
+
+    <script type="application/json" id="luxel-data">
+      {"message":"Hello Luxel"}
+    </script>
+    <script type="application/json" id="luxel-hydration">
+      {"routeId":"route:index","boundaries":[{"id":"boundary:0","directive":"load","clientModule":"client/routes/index.js"}]}
+    </script>
+    <script type="module" src="/assets/client.dev0.js"></script>
+  </body>
+</html>

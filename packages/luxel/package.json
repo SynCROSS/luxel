@@ -1,0 +1,14 @@
+{
+  "name": "@luxel/luxel",
+  "version": "0.0.0",
+  "type": "module",
+  "bin": {
+    "luxel": "./src/cli.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "bun test"
+  }
+}

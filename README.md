@@ -7,7 +7,7 @@ Bun-first, Vite-free web framework for fast, secure, trisomorphic apps.
 
 ## Status
 
-Architecture phase — prototype not started.
+Prototype slice in progress — counter fixture, tests, tracer SSR/hydration, `luxel dev|build|bench`.
 
 ## Packages (planned)
 
