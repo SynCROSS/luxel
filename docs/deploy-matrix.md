@@ -17,13 +17,19 @@ v1 **phase A** adds Bun/Node/Deno parity for dev, build, bench, and framework te
 From an app directory (e.g. `examples/counter`) after `luxel build`:
 
 ```bash
-node dist/server/start-node.mjs
+luxel serve node
+luxel serve deno
 ```
 
+`luxel serve deno` finds Deno in `%USERPROFILE%\.deno\bin` when it is not on PATH (common on Windows).
+
+Direct starters (if `deno` / `node` are on PATH):
+
 ```bash
+node dist/server/start-node.mjs
 deno run --allow-net --allow-read --allow-env dist/server/start-deno.mjs
 ```
 
-Or npm scripts: `pnpm start:node` / `pnpm start:deno` when defined in the example app.
+Or: `bun run start:node` / `bun run start:deno` in `examples/counter`.
 
 Optional env: `PORT`, `HOST`, `LUXEL_COMPRESS=0` (disable compression), `LUXEL_DIST_DIR` (defaults to parent of `dist/server/`).

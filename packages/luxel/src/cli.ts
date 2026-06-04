@@ -5,6 +5,7 @@ import { buildApp } from "./build/build-app.ts";
 import { devApp } from "./dev/serve.ts";
 import { runCounterBench } from "./bench/counter.ts";
 import { resolveAppDir } from "./config/resolve-app.ts";
+import { serveProd } from "./serve-prod.ts";
 
 const cmd = process.argv[2];
 const cwd = process.cwd();
@@ -44,7 +45,17 @@ async function main() {
     return;
   }
 
-  console.error("usage: luxel <dev|build|bench>");
+  if (cmd === "serve") {
+    const runtime = process.argv[3];
+    if (runtime !== "node" && runtime !== "deno") {
+      console.error("usage: luxel serve <node|deno>");
+      process.exit(1);
+    }
+    await serveProd(repoRoot, appDir, runtime);
+    return;
+  }
+
+  console.error("usage: luxel <dev|build|bench|serve>");
   process.exit(1);
 }
 

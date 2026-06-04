@@ -11,9 +11,12 @@ export function findDenoExecutable(): string | null {
   }
 
   const home = homedir();
+  const winExe = process.platform === "win32" ? "deno.exe" : "deno";
+  const localAppData = process.env.LOCALAPPDATA?.trim();
   const candidates = [
-    join(home, ".deno", "bin", process.platform === "win32" ? "deno.exe" : "deno"),
+    join(home, ".deno", "bin", winExe),
     join(home, ".local", "bin", "deno"),
+    ...(localAppData ? [join(localAppData, "deno", winExe)] : []),
   ];
   for (const path of candidates) {
     if (existsSync(path)) return path;

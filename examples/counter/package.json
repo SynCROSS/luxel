@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "luxel dev",
     "build": "luxel build",
-    "start:node": "node dist/server/start-node.mjs",
-    "start:deno": "deno run --allow-net --allow-read --allow-env dist/server/start-deno.mjs"
+    "start:node": "luxel serve node",
+    "start:deno": "luxel serve deno"
   },
   "dependencies": {
     "@luxel/luxel": "workspace:*"
