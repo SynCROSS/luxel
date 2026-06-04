@@ -58,6 +58,39 @@ describe("wrapCompress", () => {
       new Request("http://test.local/", { headers: { "accept-encoding": "gzip" } }),
     );
     expect(res.headers.get("content-encoding")).toBeNull();
+    expect(await res.text()).toContain("Hello Luxel");
+  });
+
+  test("sub-threshold body remains readable after compress middleware buffers", async () => {
+    const inner = async () =>
+      new Response("small", { headers: { "content-type": "text/plain; charset=utf-8" } });
+    const res = await wrapCompress(inner, {
+      enabled: true,
+      threshold: 1024,
+      encodings: ["gzip"],
+    })(new Request("http://test.local/", { headers: { "accept-encoding": "gzip" } }));
+    expect(res.headers.get("content-encoding")).toBeNull();
+    expect(await res.text()).toBe("small");
+  });
+
+  test("below size floor still returns readable body after buffering", async () => {
+    const inner = async () =>
+      new Response("small", { headers: { "content-type": "text/html; charset=utf-8" } });
+    const res = await wrapCompress(inner, { enabled: true, threshold: 1024, encodings: ["gzip"] })(
+      new Request("http://test.local/", { headers: { "accept-encoding": "gzip" } }),
+    );
+    expect(res.headers.get("content-encoding")).toBeNull();
+    expect(await res.text()).toBe("small");
+  });
+
+  test("no mutual codec still returns readable body", async () => {
+    const inner = async () =>
+      new Response("x".repeat(2048), { headers: { "content-type": "text/html; charset=utf-8" } });
+    const res = await wrapCompress(inner, { enabled: true, threshold: 0, encodings: ["gzip"] })(
+      new Request("http://test.local/", { headers: { "accept-encoding": "identity" } }),
+    );
+    expect(res.headers.get("content-encoding")).toBeNull();
+    expect(await res.text()).toHaveLength(2048);
   });
 
   test("client JS asset compresses when above size floor", async () => {

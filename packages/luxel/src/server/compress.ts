@@ -82,10 +82,17 @@ export function wrapCompress(
     if (!isCompressibleMime(contentType)) return res;
 
     const raw = new Uint8Array(await res.arrayBuffer());
-    if (raw.byteLength < threshold) return res;
+    const replay = () =>
+      new Response(raw, {
+        status: res.status,
+        statusText: res.statusText,
+        headers: res.headers,
+      });
+
+    if (raw.byteLength < threshold) return replay();
 
     const coding = pickEncoding(req.headers.get("accept-encoding"), encodings);
-    if (!coding) return res;
+    if (!coding) return replay();
 
     const compressed = compressBytes(raw, coding);
     const headers = new Headers(res.headers);
