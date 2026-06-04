@@ -3,6 +3,8 @@ import { join } from "node:path";
 import { compileCounterApp } from "../src/route/compile-app.ts";
 import { readStreamToText } from "../src/compiler/stream-document.ts";
 import { createTestServer } from "../src/test/server.ts";
+import { createLoadContext } from "../src/resource-store/load-context.ts";
+import { ResourceStore } from "../src/resource-store/store.ts";
 
 const repoRoot = join(import.meta.dir, "../../..");
 
@@ -11,7 +13,7 @@ describe("streaming SSR spike", () => {
     const app = await compileCounterApp(repoRoot);
     const route = app.getRoute("/");
     if (!route) throw new Error("missing / route");
-    const data = await route.load();
+    const data = await route.load(createLoadContext(new ResourceStore()));
     const html = route.renderDocument(data);
     const streamed = await readStreamToText(route.renderStream(data));
     expect(streamed).toBe(html);

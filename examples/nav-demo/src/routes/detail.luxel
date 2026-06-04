@@ -1,0 +1,12 @@
+<template>
+  <h1>{title}</h1>
+  <p>{homeHint}</p>
+</template>
+
+<script>
+export async function load(ctx) {
+  const data = { title: "Detail route", homeHint: "Home: /" };
+  ctx.store.set("nav:detail:view", data, { tags: ["nav"] });
+  return data;
+}
+</script>

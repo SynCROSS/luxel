@@ -16,6 +16,8 @@ export type ResourceEntry = {
   tags: string[];
   cache: ResourceCacheMeta;
   generation: number;
+  /** Set by revalidateTag; cleared on set(). Load uses this to refetch. */
+  stale: boolean;
 };
 
 /** Serializable store view for luxel-data v2 (slice #21). */
@@ -26,5 +28,6 @@ export type ResourceSnapshot = Record<
     generation: number;
     tags: string[];
     cache: ResourceCacheMeta;
+    stale: boolean;
   }
 >;

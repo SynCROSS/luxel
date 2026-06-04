@@ -4,11 +4,13 @@
 </template>
 
 <script>
-export async function load() {
-  return {
+export async function load(ctx) {
+  const data = {
     message: "About Luxel",
     blurb: "Static about page for multi-route prototype.",
   };
+  ctx.store.set("route:about:view", data, { tags: ["about"] });
+  return data;
 }
 </script>
 

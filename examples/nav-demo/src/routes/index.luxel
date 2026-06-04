@@ -1,0 +1,28 @@
+<template>
+  <h1>{headline}</h1>
+  <p>{detailHint}</p>
+</template>
+
+<script>
+const HEADLINE_KEY = "nav:headline";
+
+export async function load(ctx) {
+  if (ctx.store.isStale(HEADLINE_KEY)) {
+    const headline = ctx.store.getGeneration(HEADLINE_KEY) === 0 ? "A" : "B";
+    ctx.store.set(HEADLINE_KEY, { headline }, { tags: ["nav"] });
+  }
+  const entry = ctx.store.get(HEADLINE_KEY) as { headline: string } | undefined;
+  if (!entry) throw new Error("headline resource missing after load");
+  return { headline: entry.headline, detailHint: "Second route: /detail" };
+}
+
+export async function prefetch(ctx) {
+  // phase-1 stub: recognized export beside load
+}
+</script>
+
+<style scoped>
+p {
+  margin: 0;
+}
+</style>

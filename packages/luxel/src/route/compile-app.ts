@@ -18,10 +18,10 @@ export type CompiledApp = {
   writeDist: (outDir: string) => Promise<void>;
 };
 
-export async function compileCounterApp(repoRoot: string): Promise<CompiledApp> {
-  const appDir = "examples/counter";
+export async function compileApp(repoRoot: string, appDir: string): Promise<CompiledApp> {
+  const slug = appDir.replace(/^examples\//, "");
   const routesDir = join(repoRoot, appDir, "src/routes");
-  const genRoot = join(pkgSrc, ".generated", "counter");
+  const genRoot = join(pkgSrc, ".generated", slug);
   const discovered = await discoverRouteFiles(routesDir);
 
   const routes: CompiledRoute[] = [];
@@ -78,6 +78,14 @@ export async function compileCounterApp(repoRoot: string): Promise<CompiledApp> 
 
   await app.writeCache();
   return app;
+}
+
+export async function compileCounterApp(repoRoot: string): Promise<CompiledApp> {
+  return compileApp(repoRoot, "examples/counter");
+}
+
+export async function compileNavDemoApp(repoRoot: string): Promise<CompiledApp> {
+  return compileApp(repoRoot, "examples/nav-demo");
 }
 
 async function writeClientEntry(genRoot: string, routes: CompiledRoute[]): Promise<void> {

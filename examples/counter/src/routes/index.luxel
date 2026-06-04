@@ -6,8 +6,10 @@
 </template>
 
 <script>
-export async function load() {
-  return { message: "Hello Luxel" };
+export async function load(ctx) {
+  const message = "Hello Luxel";
+  ctx.store.set("route:index:message", { message }, { tags: ["home"] });
+  return { message };
 }
 
 const count = signal(0);

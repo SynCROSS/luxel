@@ -1,9 +1,11 @@
 import { join } from "node:path";
+import type { LuxelServerConfig } from "./compress.ts";
 
 export type LuxelConfig = {
   root: string;
   routesDir: string;
   outDir: string;
+  server?: LuxelServerConfig;
 };
 
 export async function loadLuxelConfig(appRoot: string): Promise<LuxelConfig> {
@@ -14,6 +16,7 @@ export async function loadLuxelConfig(appRoot: string): Promise<LuxelConfig> {
     root: cfg.root ?? ".",
     routesDir: cfg.routesDir ?? "src/routes",
     outDir: cfg.outDir ?? "dist",
+    server: cfg.server,
   };
 }
 

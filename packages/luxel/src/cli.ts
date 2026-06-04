@@ -4,9 +4,12 @@ import { join } from "node:path";
 import { buildApp } from "./build/build-app.ts";
 import { devApp } from "./dev/serve.ts";
 import { runCounterBench } from "./bench/counter.ts";
+import { resolveAppDir } from "./config/resolve-app.ts";
 
 const cmd = process.argv[2];
-const repoRoot = findRepoRoot(process.cwd());
+const cwd = process.cwd();
+const repoRoot = findRepoRoot(cwd);
+const appDir = resolveAppDir(cwd, repoRoot);
 
 function findRepoRoot(start: string): string {
   let dir = start;
@@ -22,17 +25,15 @@ function findRepoRoot(start: string): string {
 }
 
 async function main() {
-  const appDir = "examples/counter";
-
   if (cmd === "build") {
     const out = await buildApp(repoRoot, appDir);
-    console.log(`built ${out}`);
+    console.log(`built ${out} (${appDir})`);
     return;
   }
 
   if (cmd === "dev") {
-    const { url } = await devApp(repoRoot, appDir);
-    console.log(`luxel dev ${url}`);
+    const { url, appDir: served } = await devApp(repoRoot, appDir);
+    console.log(`luxel dev ${url} (${served})`);
     await new Promise(() => {});
   }
 

@@ -112,6 +112,30 @@ Bun-first, Vite-free web framework: compiled SFCs, streaming SSR, progressive hy
 
 **Tag revalidation**: `revalidateTag(tag)` (or equivalent) is a **server-only** API in phase 1 — callable from route loaders, prefetch, and (later) server functions after mutations. Client navigation reads the resource store and sidecar snapshots; it does not invalidate tags in phase 1.
 
+**Response compression middleware**: Optional Luxel server layer wrapping the app `fetch` handler. Negotiates `Accept-Encoding`, sets `Content-Encoding` on eligible bodies. Luxel-owned — not CDN-only. See [docs/adr/0002-response-compression.md](./docs/adr/0002-response-compression.md).
+
+**Compressible response policy**: Compress bodies whose MIME is text-like or structured text (`text/*`, `application/javascript`, `application/json`, `application/manifest+json`, …). Denylist already-compressed binary types (`image/*`, `video/*`, `font/woff2`, …). Pick best mutual codec per request — never encode a format the client did not offer.
+
+**Streaming compression policy**: v1 skips compression when the response body is a `ReadableStream` (including `?stream=1` SSR). Buffered responses compress normally. Streaming `TransformStream` compression is a later enhancement.
+
+**Compression codec preference**: Middleware picks the first mutual `Content-Encoding` from a configurable ordered list. Default order: `zstd`, then `br`, then `gzip`, then `deflate`. Honor `Accept-Encoding` quality values (`;q=`) when clients send them.
+
+**Compression size floor**: Skip encoding when the uncompressed body is below a configurable byte threshold. Default floor: 1024 bytes.
+
+**Dev compression default**: `luxel dev` and local test servers leave response compression **off** unless authors enable it in app config or server options. Production deploy entry enables compression by default.
+
+**Compression cache variance**: When middleware sets `Content-Encoding`, merge `Accept-Encoding` into the response `Vary` header (dedupe tokens). Skip `Vary` changes when the body stays identity.
+
+**Static precompression policy**: v1 compresses eligible responses at request time in middleware only. Build-time `.br` / `.zst` / `.gz` sidecars for immutable `/assets/*` are deferred until `luxel build` owns long-cache static output.
+
+**Compression implementation policy**: Middleware uses Bun built-in encoders (`CompressionStream`, `Bun.*Sync`, `node:zlib`) by default. Optional npm codec backends sit behind the same encoder interface. Per-codec backend overrides live in app config or middleware options. If Bun encoding fails for a negotiated codec, middleware may fall back to the npm backend and should emit a one-time warning per codec.
+
+**Compression configuration surface**: Production defaults live in `luxel.config.ts` under `server.compress`. Tests and custom servers pass the same typed `CompressOptions` to `wrapCompress(fetch, opts)` from `@luxel/luxel/server`. Programmatic options override config file values.
+
+**Compression passthrough rules**: Middleware leaves the response identity when `Content-Encoding` is already set, MIME is not compressible (allow/deny policy), the request method is `HEAD`, or the status is 1xx, 204, or 304.
+
+**Compression v1 slice**: Shipped — `wrapCompress`, `CompressOptions`, `createAppServerFetch`, `luxel.config` `server.compress`, prod `server/entry.js` with `productionCompress`. Defers npm fallbacks, stream compression, and build-time asset sidecars. Tracked on GitHub **#27**. See [docs/adr/0002-response-compression.md](./docs/adr/0002-response-compression.md).
+
 **Prototype threat model**: Inline threat table in `docs/prototype-slice.md` for prototype scope; full `docs/threat-model.md` deferred until after slice.
 
 _Avoid_: "framework" as product name in docs (use **Luxel**); "server components" in React sense; "hydration" alone when meaning progressive boundary hydration.
@@ -164,6 +188,18 @@ _Avoid_: "framework" as product name in docs (use **Luxel**); "server components
 - **Client navigation (phase 1)** uses full-document fetch plus sidecar parse and store merge
 - **Route prefetch** is authored as an optional SFC script export next to `load()`
 - **Tag revalidation** is server-only in phase 1; clients consume invalidated snapshots via subsequent HTML nav
+- **Response compression middleware** wraps app `fetch` for encode-on-wire; reverse proxies may still compress independently
+- **Compressible response policy** applies MIME allow/deny rules; browsers transparently decode negotiated `Content-Encoding`
+- **Streaming compression policy** defers compressing stream bodies until after buffered-path middleware is proven
+- **Compression codec preference** is author-configurable with zstd-first defaults and `Accept-Encoding` q-value respect
+- **Compression size floor** avoids compressing tiny error or stub responses unless authors lower the threshold
+- **Dev compression default** keeps local iteration fast; production server wiring turns compression on unless disabled
+- **Compression cache variance** keeps shared caches safe across negotiated encodings without dropping other `Vary` tokens
+- **Static precompression policy** separates v1 dynamic middleware from later build-emitted asset sidecars
+- **Compression implementation policy** prefers Bun-native codecs with configurable or failure-triggered npm fallbacks per algorithm
+- **Compression configuration surface** unifies `luxel.config.ts` defaults and `wrapCompress` overrides behind one typed options object
+- **Compression passthrough rules** prevent double-encoding and skip bodyless or non-entity responses
+- **Compression v1 slice** waits until after **Post-prototype phase 1** resource store, then ships via a dedicated issue
 - **Prototype threat model** records XSS, JSON sidecar, purity, and manifest threats without blocking tracer work
 
 ## Example dialogue

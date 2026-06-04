@@ -10,6 +10,7 @@ import { parseSfc } from "./parse-sfc.ts";
 import { streamHtmlDocument } from "./stream-document.ts";
 import type { Manifest } from "../manifest/types.ts";
 import type { RenderIr } from "./render-ir.ts";
+import type { LoadContext } from "../resource-store/load-context.ts";
 
 const pkgSrc = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -35,7 +36,7 @@ export type CompiledRoute = {
   serverModuleSrc: string;
   renderDocument: (data: Record<string, unknown>) => string;
   renderStream: (data: Record<string, unknown>) => ReadableStream<Uint8Array>;
-  load: () => Promise<Record<string, unknown>>;
+  load: (ctx: LoadContext) => Promise<Record<string, unknown>>;
   writeCacheFiles: () => Promise<void>;
 };
 
@@ -122,7 +123,7 @@ export async function compileRoute(sfcPath: string, options: CompileRouteOptions
     serverModuleSrc,
     renderDocument,
     renderStream,
-    load: async () => ({}),
+    load: async () => ({} as Record<string, unknown>),
     writeCacheFiles: async () => {
       await mkdir(join(options.genRoot, "client/routes"), { recursive: true });
       await mkdir(serverDir, { recursive: true });
@@ -145,7 +146,7 @@ export async function compileRoute(sfcPath: string, options: CompileRouteOptions
 async function createLoadFn(
   serverDir: string,
   serverModuleSrc: string,
-): Promise<() => Promise<Record<string, unknown>>> {
+): Promise<(ctx: LoadContext) => Promise<Record<string, unknown>>> {
   await mkdir(serverDir, { recursive: true });
   const entry = join(serverDir, "server-entry.ts");
   await writeFile(entry, serverModuleSrc, "utf8");
@@ -159,6 +160,8 @@ async function createLoadFn(
   }
   const outPath = join(serverDir, "server.mjs");
   await writeFile(outPath, await result.outputs[0]!.text(), "utf8");
-  const mod = (await import(outPath)) as { load: () => Promise<Record<string, unknown>> };
-  return () => mod.load();
+  const mod = (await import(outPath)) as {
+    load: (ctx: LoadContext) => Promise<Record<string, unknown>>;
+  };
+  return (ctx) => mod.load(ctx);
 }

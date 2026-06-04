@@ -23,5 +23,7 @@ describe("luxel build", () => {
     expect(about?.path).toBe("/about");
     const js = await readFile(join(outDir, "assets", "client.dev0.js"));
     expect(js.byteLength).toBeGreaterThan(100);
+    const entry = await readFile(join(outDir, "server", "entry.js"), "utf8");
+    expect(entry).toContain("productionCompress");
   });
 });

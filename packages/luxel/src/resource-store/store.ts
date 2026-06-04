@@ -25,6 +25,7 @@ export class ResourceStore {
       tags: options.tags ?? [],
       cache: options.cache ?? {},
       generation,
+      stale: false,
     });
   }
 
@@ -41,10 +42,16 @@ export class ResourceStore {
     return this.#entries.get(key)?.generation ?? 0;
   }
 
+  isStale(key: string): boolean {
+    const entry = this.#entries.get(key);
+    return !entry || entry.stale;
+  }
+
   revalidateTag(tag: string): void {
     for (const entry of this.#entries.values()) {
       if (entry.tags.includes(tag)) {
         entry.generation += 1;
+        entry.stale = true;
       }
     }
   }
@@ -57,6 +64,7 @@ export class ResourceStore {
         generation: entry.generation,
         tags: [...entry.tags],
         cache: { ...entry.cache },
+        stale: entry.stale,
       };
     }
     return out;

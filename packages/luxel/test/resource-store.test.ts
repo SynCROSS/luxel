@@ -8,6 +8,14 @@ describe("ResourceStore", () => {
     expect(store.get("route:index:message")).toEqual({ message: "Hello Luxel" });
   });
 
+  test("revalidateTag marks tagged entries stale", () => {
+    const store = new ResourceStore();
+    store.set("a", 1, { tags: ["posts"] });
+    store.revalidateTag("posts");
+    expect(store.isStale("a")).toBe(true);
+    expect(store.isStale("missing")).toBe(true);
+  });
+
   test("revalidateTag bumps generation for tagged entries only", () => {
     const store = new ResourceStore();
     store.set("a", 1, { tags: ["posts"] });
@@ -34,6 +42,7 @@ describe("ResourceStore", () => {
       tags: [],
       cache: { maxAge: 60, staleWhileRevalidate: 300 },
       generation: 0,
+      stale: false,
     });
   });
 
@@ -55,6 +64,7 @@ describe("ResourceStore", () => {
         generation: 1,
         tags: ["home"],
         cache: {},
+        stale: true,
       },
     });
   });
