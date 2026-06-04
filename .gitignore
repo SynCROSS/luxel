@@ -13,3 +13,5 @@ test-results/
 playwright-report/
 .luxel/
 packages/luxel/src/.generated/
+.scratch/
+.cursorrules
