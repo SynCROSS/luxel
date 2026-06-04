@@ -3,6 +3,12 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "scripts": {
+    "dev": "luxel dev",
+    "build": "luxel build",
+    "start:node": "node dist/server/start-node.mjs",
+    "start:deno": "deno run --allow-net --allow-read --allow-env dist/server/start-deno.mjs"
+  },
   "dependencies": {
     "@luxel/luxel": "workspace:*"
   }

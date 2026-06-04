@@ -26,5 +26,7 @@ describe("luxel build", () => {
     const entry = await readFile(join(outDir, "server", "entry.js"), "utf8");
     expect(entry).toContain("productionCompress");
     await access(join(outDir, "server", "app.mjs"));
+    await access(join(outDir, "server", "start-node.mjs"));
+    await access(join(outDir, "server", "start-deno.mjs"));
   });
 });

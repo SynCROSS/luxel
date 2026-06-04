@@ -11,3 +11,19 @@
 | Full toolchain on host | Yes (pre-v1) | Deploy only | Deploy only |
 
 v1 **phase A** adds Bun/Node/Deno parity for dev, build, bench, and framework tests. See [ADR-0003](./adr/0003-multi-runtime-deploy.md).
+
+## Local production smoke
+
+From an app directory (e.g. `examples/counter`) after `luxel build`:
+
+```bash
+node dist/server/start-node.mjs
+```
+
+```bash
+deno run --allow-net --allow-read --allow-env dist/server/start-deno.mjs
+```
+
+Or npm scripts: `pnpm start:node` / `pnpm start:deno` when defined in the example app.
+
+Optional env: `PORT`, `HOST`, `LUXEL_COMPRESS=0` (disable compression), `LUXEL_DIST_DIR` (defaults to parent of `dist/server/`).

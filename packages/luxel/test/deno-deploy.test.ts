@@ -2,29 +2,32 @@ import { describe, expect, test } from "bun:test";
 import { buildApp } from "../src/build/build-app.ts";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
+import { findDenoExecutable } from "../src/util/find-deno.ts";
 
 const repoRoot = join(import.meta.dir, "../../..");
-const denoOnPath = spawnSync("deno", ["--version"], { encoding: "utf8" }).status === 0;
 
-describe.skipIf(!denoOnPath)("Deno serveLuxel", () => {
-  test("serves built counter via deno run", async () => {
+function resolveDeno(): string | null {
+  const found = findDenoExecutable();
+  if (found) return found;
+  const onPath = spawnSync("deno", ["--version"], { encoding: "utf8" });
+  return onPath.status === 0 ? "deno" : null;
+}
+
+const denoExe = resolveDeno();
+
+describe.skipIf(!denoExe)("Deno serveLuxel", () => {
+  test("serves built counter via dist/server/start-deno.mjs", async () => {
     const outDir = await buildApp(repoRoot, "examples/counter");
-    const script = `
-import { serveLuxel } from ${JSON.stringify(join(import.meta.dir, "../src/deno/serve.ts"))};
-const server = await serveLuxel({
-  distDir: ${JSON.stringify(outDir)},
-  compress: { enabled: false },
-  useProductionCompress: false,
-});
-console.log(JSON.stringify({ url: server.url }));
-await new Promise(() => {});
-`;
-    const proc = Bun.spawn(["deno", "run", "--allow-net", "--allow-read", "-"], {
-      cwd: join(import.meta.dir, ".."),
-      stdin: new TextEncoder().encode(script),
-      stdout: "pipe",
-      stderr: "pipe",
-    });
+    const startScript = join(outDir, "server", "start-deno.mjs");
+    const proc = Bun.spawn(
+      [denoExe!, "run", "--allow-net", "--allow-read", "--allow-env", startScript],
+      {
+        cwd: join(outDir, "server"),
+        env: { ...process.env, LUXEL_COMPRESS: "0", PORT: "0" },
+        stdout: "pipe",
+        stderr: "pipe",
+      },
+    );
 
     const reader = proc.stdout.getReader();
     const decoder = new TextDecoder();
@@ -34,13 +37,15 @@ await new Promise(() => {});
       const { value, done } = await reader.read();
       if (done) break;
       stdout += decoder.decode(value);
-      const line = stdout.trim().split("\n").find((l) => l.startsWith("{"));
+      const line = stdout.split("\n").find((l) => l.includes("http://"));
       if (line) {
-        const { url } = JSON.parse(line) as { url: string };
-        const res = await fetch(url);
-        expect(await res.text()).toContain("Hello Luxel");
-        proc.kill();
-        return;
+        const match = line.match(/http:\/\/[^\s]+/);
+        if (match) {
+          const res = await fetch(match[0]);
+          expect(await res.text()).toContain("Hello Luxel");
+          proc.kill();
+          return;
+        }
       }
     }
     proc.kill();

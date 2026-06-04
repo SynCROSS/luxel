@@ -68,6 +68,34 @@ async function stopNode(proc: ReturnType<typeof spawn>): Promise<void> {
 }
 
 describe("Node serveLuxel", () => {
+  test("dist/server/start-node.mjs serves counter", async () => {
+    const outDir = await buildApp(repoRoot, "examples/counter");
+    const proc = spawn(process.execPath, [join(outDir, "server", "start-node.mjs")], {
+      env: { ...process.env, LUXEL_COMPRESS: "0", PORT: "0" },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const { url } = await new Promise<{ url: string }>((resolve, reject) => {
+      let stdout = "";
+      proc.stdout?.on("data", (chunk) => {
+        stdout += chunk.toString();
+        const line = stdout.split("\n").find((l) => l.includes("http://"));
+        if (line) {
+          const match = line.match(/http:\/\/[^\s]+/);
+          if (match) resolve({ url: match[0] });
+        }
+      });
+      proc.stderr?.on("data", (c) => reject(new Error(c.toString())));
+      proc.on("error", reject);
+    });
+    try {
+      const res = await fetch(url);
+      expect(res.status).toBe(200);
+      expect(await res.text()).toContain("Hello Luxel");
+    } finally {
+      await stopNode(proc);
+    }
+  }, 60_000);
+
   test("serves built counter without Bun on server", async () => {
     const outDir = await buildApp(repoRoot, "examples/counter");
     const { url, proc } = await spawnNodeServer(outDir, false);
