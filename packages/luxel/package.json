@@ -6,9 +6,15 @@
     "luxel": "./src/cli.ts"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./deploy": "./src/deploy/index.ts",
+    "./node": "./src/node/serve.ts",
+    "./deno": "./src/deno/serve.ts"
   },
   "scripts": {
-    "test": "bun test"
+    "test": "bun test",
+    "dev": "bun src/cli.ts dev",
+    "build": "bun src/cli.ts build",
+    "bench": "bun src/cli.ts bench"
   }
 }

@@ -1,13 +1,13 @@
 # Luxel Architecture (compact)
 
-**Product:** Luxel · **Packages:** `@luxel/*` · **CLI:** `luxel` · **Runtime:** Bun-first
+**Product:** Luxel · **Packages:** `@luxel/*` · **CLI:** `luxel` · **Runtime:** Bun toolchain pre-v1; Node/Deno deploy (see ADR-0003)
 
 ## 1. Goals
 
 | Axis | Target |
 |------|--------|
 | Tooling | Vite-free hard ban (no Vite, Rollup, Vite plugin API) |
-| Runtime | Bun-first; Node/edge adapters later |
+| Runtime | **Phase B:** Bun-only toolchain; production server on Node 20+ and Deno 2+. **v1:** full parity on Bun, Node, Deno. Edge adapters after server path. [ADR-0003](./adr/0003-multi-runtime-deploy.md) |
 | Client | Fine-grained reactive DOM; signals + compiler sugar |
 | Render | Streaming SSR, progressive hydration, SSG, ISR, trisomorphic (server + page + SW) |
 | Perf | Smallest JS, fastest hydration/INP, SSR throughput, build/HMR, Web Vitals (scorecard + per-metric) |
@@ -109,9 +109,10 @@ Shared fixtures: micro (counter/list/table), app (blog/dashboard/ecommerce/auth)
 4. Hydration, ISR, auth, SW trisomorphic, plugins
 5. Docs site (also a benchmark fixture)
 
-## 13. ADR candidates (write when locking)
+## 13. ADRs
 
-- Bun-first + Bun.build core
+- [0003 Multi-runtime deploy](./adr/0003-multi-runtime-deploy.md) — phase B Node/Deno prod; v1 toolchain parity
+- Bun-first + Bun.build core (toolchain pre-v1; see 0003)
 - No server components
 - JSON-only stream sidecars
 - Private IR / public manifests
@@ -121,5 +122,5 @@ Shared fixtures: micro (counter/list/table), app (blog/dashboard/ecommerce/auth)
 
 - Exact SFC directive grammar
 - Resumability timeline (post-1.0)
-- Edge adapter priority after Bun/Node
+- Edge adapter priority after phase B Node/Deno server (ADR-0003)
 - Benchmark scorecard weights

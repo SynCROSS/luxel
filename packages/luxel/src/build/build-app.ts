@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { bundleClient } from "./client-bundle.ts";
+import { bundleServerApp } from "./bundle-server-app.ts";
 import { compileApp } from "../route/compile-app.ts";
 import { loadLuxelConfig, resolveAppPaths } from "../config/load.ts";
 import { resolveProductionCompressOptions } from "../config/compress.ts";
@@ -17,6 +18,12 @@ export async function buildApp(repoRoot: string, appDir: string): Promise<string
 
   await mkdir(join(paths.outDir, "assets"), { recursive: true });
   await app.writeDist(paths.outDir);
+  await bundleServerApp(
+    genRoot,
+    app.manifest,
+    app.routes,
+    join(paths.outDir, "server", "app.mjs"),
+  );
   await writeFile(join(paths.outDir, "assets", ASSET_CLIENT), js);
   await writeFile(
     join(paths.outDir, "server", "entry.js"),

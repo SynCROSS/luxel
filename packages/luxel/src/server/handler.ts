@@ -1,11 +1,11 @@
 import { ASSET_CLIENT } from "../compiler/codegen-ssr.ts";
 import { createRenderWorker } from "./render-worker.ts";
-import type { CompiledApp } from "../route/compile-app.ts";
+import type { AppRuntime } from "./app-runtime.ts";
 import { wrapCompress, type CompressOptions } from "./compress.ts";
 import { resolveCompressOptions } from "../config/compress.ts";
 
 export type AppServerOptions = {
-  app: CompiledApp;
+  app: AppRuntime;
   clientBundle: Uint8Array | string;
   /** Enables POST /__luxel/revalidate for server integration tests only. */
   internalRoutes?: boolean;

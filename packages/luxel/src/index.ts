@@ -21,4 +21,7 @@ export { createLoadContext } from "./resource-store/load-context.ts";
 export { revalidateTag } from "./resource-store/revalidate.ts";
 export { compileSemanticIr } from "./compiler/semantic-ir.ts";
 export { buildApp } from "./build/build-app.ts";
+export { loadAppFromDist } from "./deploy/load-app.ts";
+export type { LoadedDeployApp } from "./deploy/load-app.ts";
+export type { AppRuntime, AppRoute } from "./server/app-runtime.ts";
 export { runCounterBench } from "./bench/counter.ts";

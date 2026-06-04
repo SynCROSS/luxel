@@ -13,5 +13,6 @@ test-results/
 playwright-report/
 .luxel/
 packages/luxel/src/.generated/
+packages/luxel/test/fixtures/node-serve-runner.mjs
 .scratch/
 .cursorrules

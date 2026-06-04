@@ -1,6 +1,6 @@
 # Luxel
 
-Bun-first, Vite-free web framework: compiled SFCs, streaming SSR, progressive hydration, trisomorphic rendering (server + page + service worker).
+Vite-free web framework: compiled SFCs, streaming SSR, progressive hydration, trisomorphic rendering (server + page + service worker). **Bun-first toolchain** pre-v1; **multi-runtime deploy** on Node and Deno before v1 full parity.
 
 ## Language
 
@@ -128,13 +128,25 @@ Bun-first, Vite-free web framework: compiled SFCs, streaming SSR, progressive hy
 
 **Static precompression policy**: v1 compresses eligible responses at request time in middleware only. Build-time `.br` / `.zst` / `.gz` sidecars for immutable `/assets/*` are deferred until `luxel build` owns long-cache static output.
 
-**Compression implementation policy**: Middleware uses Bun built-in encoders (`CompressionStream`, `Bun.*Sync`, `node:zlib`) by default. Optional npm codec backends sit behind the same encoder interface. Per-codec backend overrides live in app config or middleware options. If Bun encoding fails for a negotiated codec, middleware may fall back to the npm backend and should emit a one-time warning per codec.
+**Compression implementation policy**: Single encoder module, runtime-selected: **Bun** → `Bun.*Sync` (incl. zstd); **Node/Deno deploy** → `node:zlib` for gzip, deflate, br, and **zstd when `zstdCompressSync` exists** (Node ≥22.15). No npm codec dep for phase B. If a negotiated codec has no encoder on this runtime (e.g. zstd on Node 20–22.14), **skip that codec** and pick the next mutual one — never throw mid-request. Optional npm backends remain a post-v1 / ADR-0002 follow-up for exotic overrides.
 
 **Compression configuration surface**: Production defaults live in `luxel.config.ts` under `server.compress`. Tests and custom servers pass the same typed `CompressOptions` to `wrapCompress(fetch, opts)` from `@luxel/luxel/server`. Programmatic options override config file values.
 
 **Compression passthrough rules**: Middleware leaves the response identity when `Content-Encoding` is already set, MIME is not compressible (allow/deny policy), the request method is `HEAD`, or the status is 1xx, 204, or 304.
 
 **Compression v1 slice**: Shipped — `wrapCompress`, `CompressOptions`, `createAppServerFetch`, `luxel.config` `server.compress`, prod `server/entry.js` with `productionCompress`. Defers npm fallbacks, stream compression, and build-time asset sidecars. Tracked on GitHub **#27**. See [docs/adr/0002-response-compression.md](./docs/adr/0002-response-compression.md).
+
+**Runtime support policy**: Pre-v1 (**phase B**): production server runs on **Node** and **Deno**; `luxel build` / `luxel dev` / `luxel bench` / framework tests stay **Bun-only**. v1 (**phase A**): full toolchain parity on Bun, Node, and Deno. Deploy contract is Web `fetch` (`createAppServerFetch`); runtime-specific listen glue is adapter layer, not a second app model. See [docs/adr/0003-multi-runtime-deploy.md](./docs/adr/0003-multi-runtime-deploy.md).
+
+**Deploy integration**: **Handler-first** — apps wire `createAppServerFetch({ app, clientBundle, … })` to any HTTP server. **Runtime adapters** (`@luxel/luxel/node`, `@luxel/luxel/deno`, or package subpaths) are thin listen glue only (`serveLuxel({ …, port })` → same fetch). One shared `dist/` (ESM); no separate Deno emit pre-v1.
+
+**Deploy artifact loading**: `luxel build` (Bun) emits a **bundled** `dist/server/app.mjs` with resolved deps plus existing assets/manifest. Framework exposes **`loadAppFromDist(distDir)`** → `{ app, clientBundle }` for `createAppServerFetch` and adapters. Raw `dist/server/routes/*.ts` remain inspectable/debug emit, not the Node/Deno entry path. **ESM-only** pre-v1; **Node 20+** and **Deno 2+**.
+
+**Node deploy floor**: **Node 20+** LTS (unchanged). **zstd** on Node only when `node:zlib` exposes `zstdCompressSync` (≥22.15); older 20.x/22.14 negotiate br → gzip → deflate only. Document in deploy matrix; no npm zstd fallback in phase B.
+
+**Runtime adapter packaging**: Phase B ships Node/Deno listen glue as **`@luxel/luxel` package subpaths** (e.g. `@luxel/luxel/node`, `@luxel/luxel/deno`, and a deploy subpath for `loadAppFromDist` + server exports). Separate `@luxel/node` / `@luxel/deno` packages deferred unless adapters outgrow one package at v1.
+
+**Phase B implementation order**: (1) runtime compression encoders, (2) `loadAppFromDist` + `dist/server/app.mjs` bundle in `luxel build`, (3) `@luxel/luxel/node` and `/deno` adapters, (4) Node integration test against built `dist/`. See [docs/adr/0003-multi-runtime-deploy.md](./docs/adr/0003-multi-runtime-deploy.md).
 
 **Prototype threat model**: Inline threat table in `docs/prototype-slice.md` for prototype scope; full `docs/threat-model.md` deferred until after slice.
 
@@ -196,10 +208,16 @@ _Avoid_: "framework" as product name in docs (use **Luxel**); "server components
 - **Dev compression default** keeps local iteration fast; production server wiring turns compression on unless disabled
 - **Compression cache variance** keeps shared caches safe across negotiated encodings without dropping other `Vary` tokens
 - **Static precompression policy** separates v1 dynamic middleware from later build-emitted asset sidecars
-- **Compression implementation policy** prefers Bun-native codecs with configurable or failure-triggered npm fallbacks per algorithm
+- **Compression implementation policy** uses Bun encoders on Bun and `node:zlib` on Node/Deno deploy, with capability-based zstd and no npm dep in phase B
 - **Compression configuration surface** unifies `luxel.config.ts` defaults and `wrapCompress` overrides behind one typed options object
 - **Compression passthrough rules** prevent double-encoding and skip bodyless or non-entity responses
 - **Compression v1 slice** waits until after **Post-prototype phase 1** resource store, then ships via a dedicated issue
+- **Runtime support policy** separates pre-v1 deploy runtimes (Node, Deno) from Bun-only toolchain until v1 parity
+- **Deploy integration** keeps `createAppServerFetch` as the contract; Node/Deno adapters only bind fetch to a listener
+- **Deploy artifact loading** pairs a Bun-built server bundle with `loadAppFromDist` so deploy runtimes never import monorepo-relative route sources
+- **Node deploy floor** keeps Node 20+ while zstd stays capability-gated on newer Node patch releases
+- **Runtime adapter packaging** colocates deploy adapters as subpath exports on the main framework package pre-v1
+- **Phase B implementation order** ships encoders before bundle/loader, then adapters, then Node integration tests
 - **Prototype threat model** records XSS, JSON sidecar, purity, and manifest threats without blocking tracer work
 
 ## Example dialogue

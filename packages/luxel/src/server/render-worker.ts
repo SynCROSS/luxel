@@ -1,5 +1,4 @@
-import type { CompiledApp } from "../route/compile-app.ts";
-import type { CompiledRoute } from "../compiler/compile-route.ts";
+import type { AppRuntime, AppRoute } from "./app-runtime.ts";
 import { createLoadContext } from "../resource-store/load-context.ts";
 import { ResourceStore } from "../resource-store/store.ts";
 
@@ -12,10 +11,10 @@ export interface RenderWorker {
   getStore(): ResourceStore;
 }
 
-export function createRenderWorker(app: CompiledApp): RenderWorker {
+export function createRenderWorker(app: AppRuntime): RenderWorker {
   const store = new ResourceStore();
 
-  async function runRouteLoad(route: CompiledRoute): Promise<Record<string, unknown>> {
+  async function runRouteLoad(route: AppRoute): Promise<Record<string, unknown>> {
     const ctx = createLoadContext(store);
     return route.load(ctx);
   }

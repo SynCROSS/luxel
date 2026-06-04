@@ -1,6 +1,10 @@
-import { brotliCompressSync } from "node:zlib";
+import {
+  compressBytes,
+  getAvailableEncodings,
+  type CompressionFormat,
+} from "./encoders.ts";
 
-export type CompressionFormat = "zstd" | "br" | "gzip" | "deflate";
+export type { CompressionFormat } from "./encoders.ts";
 
 export type CompressOptions = {
   enabled?: boolean;
@@ -55,21 +59,14 @@ function pickEncoding(
   return best;
 }
 
-function compressBody(body: Uint8Array, encoding: CompressionFormat): Uint8Array {
-  if (encoding === "gzip") return Bun.gzipSync(body);
-  if (encoding === "deflate") return Bun.deflateSync(body);
-  if (encoding === "zstd") return Bun.zstdCompressSync(body);
-  if (encoding === "br") return brotliCompressSync(body);
-  return body;
-}
-
 export function wrapCompress(
   fetch: (req: Request) => Promise<Response>,
   opts: CompressOptions = {},
 ): (req: Request) => Promise<Response> {
   const enabled = opts.enabled ?? false;
   const threshold = opts.threshold ?? 1024;
-  const encodings = opts.encodings ?? DEFAULT_ENCODINGS;
+  const preferred = opts.encodings ?? DEFAULT_ENCODINGS;
+  const encodings = getAvailableEncodings(preferred);
 
   return async (req) => {
     const res = await fetch(req);
@@ -90,7 +87,7 @@ export function wrapCompress(
     const coding = pickEncoding(req.headers.get("accept-encoding"), encodings);
     if (!coding) return res;
 
-    const compressed = compressBody(raw, coding);
+    const compressed = compressBytes(raw, coding);
     const headers = new Headers(res.headers);
     headers.set("content-encoding", coding);
     headers.delete("content-length");
