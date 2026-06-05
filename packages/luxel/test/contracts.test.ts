@@ -24,8 +24,8 @@ describe("artifact contracts", () => {
     const goldenIndex = golden.routes.find((r) => r.id === "route:index");
     expect(index).toBeDefined();
     assertManifestMatches(
-      { version: 1, routes: [index!], components: [app.manifest.components.find((c) => c.id === "sfc:index")!] },
-      { version: 1, routes: [goldenIndex!], components: [golden.components.find((c) => c.id === "sfc:index")!] },
+      { version: 2, routes: [index!], components: [app.manifest.components.find((c) => c.id === "sfc:index")!] },
+      { version: 2, routes: [goldenIndex!], components: [golden.components.find((c) => c.id === "sfc:index")!] },
     );
   });
 

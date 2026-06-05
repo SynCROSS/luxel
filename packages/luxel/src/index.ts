@@ -16,6 +16,15 @@ export { generateCounterManifest } from "./manifest/generate.ts";
 export { compileRoute } from "./compiler/compile-route.ts";
 export { compileCounterApp, compileNavDemoApp } from "./route/compile-app.ts";
 export { ResourceStore } from "./resource-store/store.ts";
+export {
+  LUXEL_DATA_VERSION,
+  isLuxelDataV2,
+  serializeLuxelData,
+  projectFromSnapshot,
+  type LuxelDataV2,
+  type TemplateBinding,
+} from "./resource-store/luxel-data.ts";
+export { projectStoreToTemplateData } from "./resource-store/project-bindings.ts";
 export type { LoadContext } from "./resource-store/load-context.ts";
 export { createLoadContext } from "./resource-store/load-context.ts";
 export { revalidateTag } from "./resource-store/revalidate.ts";
@@ -25,3 +34,10 @@ export { loadAppFromDist } from "./deploy/load-app.ts";
 export type { LoadedDeployApp } from "./deploy/load-app.ts";
 export type { AppRuntime, AppRoute } from "./server/app-runtime.ts";
 export { runCounterBench } from "./bench/counter.ts";
+export { runBenchRegistry, type BenchJsonLine } from "./bench/registry.ts";
+export type { HtmlCacheAdapter, HtmlCacheEntry } from "./server/html-cache.ts";
+export { isCacheFresh } from "./server/html-cache.ts";
+export { DevCredentialsProvider, type AuthProvider } from "./auth/provider.ts";
+export { SqliteSessionStore } from "./auth/sqlite-session-store.ts";
+export type { SessionStoreAdapter, SessionRecord } from "./auth/session.ts";
+export { buildServerFnRegistry } from "./server/server-fn.ts";

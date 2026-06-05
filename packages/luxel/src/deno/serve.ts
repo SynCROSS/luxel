@@ -1,4 +1,6 @@
 import { loadAppFromDist } from "../deploy/load-app.ts";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { createAppServerFetch } from "../server/handler.ts";
 import type { CompressOptions } from "../server/compress.ts";
 import { resolveProductionCompressOptions } from "../config/compress.ts";
@@ -25,7 +27,13 @@ export async function serveLuxel(options: ServeLuxelOptions): Promise<LuxelDenoS
       ? resolveProductionCompressOptions()
       : { enabled: false });
 
-  const fetch = createAppServerFetch({ app, clientBundle, compress });
+  const staticRoot = join(options.distDir, "static");
+  const fetch = createAppServerFetch({
+    app,
+    clientBundle,
+    compress,
+    staticRoot: existsSync(staticRoot) ? staticRoot : undefined,
+  });
   const hostname = options.hostname ?? "127.0.0.1";
   const port = options.port ?? 0;
 

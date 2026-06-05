@@ -4,6 +4,8 @@
 </template>
 
 <script>
+export const prerender = true;
+
 export async function load(ctx) {
   const data = {
     message: "About Luxel",

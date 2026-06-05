@@ -13,9 +13,10 @@ describe("streaming SSR spike", () => {
     const app = await compileCounterApp(repoRoot);
     const route = app.getRoute("/");
     if (!route) throw new Error("missing / route");
-    const data = await route.load(createLoadContext(new ResourceStore()));
-    const html = route.renderDocument(data);
-    const streamed = await readStreamToText(route.renderStream(data));
+    const store = new ResourceStore();
+    await route.load(createLoadContext(store));
+    const html = route.renderFromStore(store);
+    const streamed = await readStreamToText(route.renderStreamFromStore(store));
     expect(streamed).toBe(html);
   });
 

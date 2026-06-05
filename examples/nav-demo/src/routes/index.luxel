@@ -1,9 +1,13 @@
 <template>
   <h1>{headline}</h1>
   <p>{detailHint}</p>
+  <p><a href="/detail" data-luxel-nav>Detail route</a></p>
 </template>
 
 <script>
+export const revalidate = 60;
+export const offline = "none";
+
 const HEADLINE_KEY = "nav:headline";
 
 export async function load(ctx) {
@@ -11,13 +15,16 @@ export async function load(ctx) {
     const headline = ctx.store.getGeneration(HEADLINE_KEY) === 0 ? "A" : "B";
     ctx.store.set(HEADLINE_KEY, { headline }, { tags: ["nav"] });
   }
-  const entry = ctx.store.get(HEADLINE_KEY) as { headline: string } | undefined;
-  if (!entry) throw new Error("headline resource missing after load");
-  return { headline: entry.headline, detailHint: "Second route: /detail" };
+  if (!ctx.store.get(HEADLINE_KEY)) throw new Error("headline resource missing after load");
+  ctx.store.set("nav:index:meta", { detailHint: "Second route: /detail" }, { tags: ["nav"] });
 }
 
 export async function prefetch(ctx) {
   // phase-1 stub: recognized export beside load
+}
+
+export async function echoMessage(input: { text: string }) {
+  return { reply: input.text.toUpperCase() };
 }
 </script>
 

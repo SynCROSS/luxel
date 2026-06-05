@@ -53,6 +53,21 @@ describe("ResourceStore", () => {
     expect(store.get("route:index:default")).toBeUndefined();
   });
 
+  test("mergeSnapshot keeps newer generation only", () => {
+    const store = new ResourceStore();
+    store.set("a", { v: 1 }, { key: "a" });
+    store.mergeSnapshot({
+      a: { value: { v: 2 }, generation: 1, tags: [], cache: {}, stale: false },
+      b: { value: { v: 3 }, generation: 0, tags: [], cache: {}, stale: false },
+    });
+    expect(store.get("a")).toEqual({ v: 2 });
+    expect(store.get("b")).toEqual({ v: 3 });
+    store.mergeSnapshot({
+      a: { value: { v: 0 }, generation: 0, tags: [], cache: {}, stale: false },
+    });
+    expect(store.get("a")).toEqual({ v: 2 });
+  });
+
   test("snapshot captures values and generations for hydration handoff", () => {
     const store = new ResourceStore();
     store.set("route:index:message", { message: "hi" }, { tags: ["home"] });

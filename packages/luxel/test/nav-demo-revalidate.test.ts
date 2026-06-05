@@ -43,6 +43,16 @@ describe("nav-demo revalidateTag", () => {
     expect(entry.includes("revalidateTag")).toBe(false);
   });
 
+  test("nav-only client entry skips hydrate imports", async () => {
+    const repoRoot = join(import.meta.dir, "../../..");
+    const app = await compileNavDemoApp(repoRoot);
+    const genRoot = await app.writeCache();
+    const entry = await Bun.file(join(genRoot, "client-entry.ts")).text();
+    expect(entry).toContain("setupClientNav");
+    expect(entry).not.toMatch(/client\/routes\//);
+    expect(entry).not.toMatch(/route_\w+/);
+  });
+
   test("server revalidateTag API invalidates tagged store entries", async () => {
     const repoRoot = join(import.meta.dir, "../../..");
     const app = await compileNavDemoApp(repoRoot);

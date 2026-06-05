@@ -1,6 +1,11 @@
 import { readJsonSidecar } from "./sidecar.ts";
 import type { BoundaryModule } from "./hydrate-types.ts";
 import { findBoundaryHostElement } from "./boundary-host.ts";
+import {
+  isLuxelDataV2,
+  projectFromSnapshot,
+  type TemplateBinding,
+} from "../resource-store/luxel-data.ts";
 
 export type { BoundaryModule } from "./hydrate-types.ts";
 export type HydrateRouteOptions = {
@@ -32,11 +37,16 @@ export function hydrateRoute(options: HydrateRouteOptions): void {
 }
 
 export function hydrateFromDocument(modules: Record<string, BoundaryModule>): void {
-  const data = readJsonSidecar<Record<string, unknown>>("luxel-data");
+  const rawData = readJsonSidecar<unknown>("luxel-data");
   const hydration = readJsonSidecar<{
     routeId: string;
+    bindings?: TemplateBinding[];
     boundaries: HydrateRouteOptions["boundaries"];
   }>("luxel-hydration");
+
+  const data = isLuxelDataV2(rawData)
+    ? projectFromSnapshot(rawData.resources, hydration.bindings ?? [])
+    : (rawData as Record<string, unknown>);
 
   hydrateRoute({
     routeId: hydration.routeId,

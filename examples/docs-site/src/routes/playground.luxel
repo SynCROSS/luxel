@@ -1,0 +1,18 @@
+<template>
+  <h1>{title}</h1>
+  <p>{hint}</p>
+</template>
+
+<script>
+export async function load(ctx) {
+  ctx.store.set(
+    "docs:playground",
+    { title: "Playground", hint: "Server fn demo via POST /__luxel/fn." },
+    { tags: ["docs"] },
+  );
+}
+
+export async function echoDocs(input: { text: string }) {
+  return { reply: `docs:${input.text}` };
+}
+</script>

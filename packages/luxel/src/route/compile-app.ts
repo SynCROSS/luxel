@@ -3,10 +3,13 @@ import { writeFile, mkdir } from "node:fs/promises";
 import { compileRoute, type CompiledRoute } from "../compiler/compile-route.ts";
 import { discoverRouteFiles } from "../routing/discover-routes.ts";
 import type { Manifest } from "../manifest/types.ts";
-import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { getLuxelPkgSrc } from "../paths.ts";
+import type { BundleBackend } from "../host/backends/types.ts";
+import { pickBundleBackend } from "../build/pick-bundle-backend.ts";
 
-const pkgSrc = join(dirname(fileURLToPath(import.meta.url)), "..");
+export type CompileAppOptions = {
+  bundleBackend?: BundleBackend;
+};
 
 export type CompiledApp = {
   appDir: string;
@@ -18,10 +21,15 @@ export type CompiledApp = {
   writeDist: (outDir: string) => Promise<void>;
 };
 
-export async function compileApp(repoRoot: string, appDir: string): Promise<CompiledApp> {
+export async function compileApp(
+  repoRoot: string,
+  appDir: string,
+  options?: CompileAppOptions,
+): Promise<CompiledApp> {
+  const bundleBackend = options?.bundleBackend ?? pickBundleBackend();
   const slug = appDir.replace(/^examples\//, "");
   const routesDir = join(repoRoot, appDir, "src/routes");
-  const genRoot = join(pkgSrc, ".generated", slug);
+  const genRoot = join(getLuxelPkgSrc(), ".generated", slug);
   const discovered = await discoverRouteFiles(routesDir);
 
   const routes: CompiledRoute[] = [];
@@ -35,12 +43,13 @@ export async function compileApp(repoRoot: string, appDir: string): Promise<Comp
         componentId: route.componentId,
         slug: route.slug,
         genRoot,
+        bundleBackend,
       }),
     );
   }
 
   const manifest: Manifest = {
-    version: 1,
+    version: 2,
     routes: routes.map((r) => r.manifestRoute),
     components: routes.map((r) => r.manifestComponent),
   };
@@ -90,6 +99,7 @@ export async function compileNavDemoApp(repoRoot: string): Promise<CompiledApp> 
 
 async function writeClientEntry(genRoot: string, routes: CompiledRoute[]): Promise<void> {
   const hydrated = routes.filter((r) => r.hasClientBundle);
+  const shipsClient = routes.some((r) => r.shipClientRuntime);
   const imports = hydrated
     .map((r) => `import * as route_${r.slug} from "./client/routes/${r.slug}.ts";`)
     .join("\n");
@@ -98,11 +108,14 @@ async function writeClientEntry(genRoot: string, routes: CompiledRoute[]): Promi
     join(genRoot, "client-entry.ts"),
     [
       `import { hydrateFromDocument } from "../../runtime/hydrate.ts";`,
+      `import { setupClientNav } from "../../runtime/client-nav.ts";`,
       imports,
       ``,
-      `hydrateFromDocument({`,
+      `const modules = {`,
       map,
-      `});`,
+      `};`,
+      `if (Object.keys(modules).length > 0) hydrateFromDocument(modules);`,
+      shipsClient ? `setupClientNav(modules);` : ``,
     ].join("\n"),
     "utf8",
   );

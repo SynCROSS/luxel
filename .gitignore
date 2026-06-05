@@ -8,6 +8,7 @@ dist/
 !.env.example
 .DS_Store
 Thumbs.db
+docs/benchmarks/runs/
 coverage/
 test-results/
 playwright-report/

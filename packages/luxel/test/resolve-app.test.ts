@@ -14,4 +14,10 @@ describe("resolveAppDir", () => {
       "examples/nav-demo",
     );
   });
+
+  test("resolves standalone app root when luxel.config.ts is in cwd", () => {
+    expect(resolveAppDir(join(repoRoot, "examples/counter"), join(repoRoot, "examples/counter"))).toBe(
+      ".",
+    );
+  });
 });

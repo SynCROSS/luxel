@@ -1,12 +1,15 @@
 <template>
   <h1>{title}</h1>
   <p>{homeHint}</p>
+  <p><a href="/" data-luxel-nav>Home</a></p>
 </template>
 
 <script>
 export async function load(ctx) {
-  const data = { title: "Detail route", homeHint: "Home: /" };
-  ctx.store.set("nav:detail:view", data, { tags: ["nav"] });
-  return data;
+  ctx.store.set(
+    "nav:detail:view",
+    { title: "Detail route", homeHint: "Home: /" },
+    { tags: ["nav"] },
+  );
 }
 </script>

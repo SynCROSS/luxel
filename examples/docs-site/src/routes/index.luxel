@@ -1,0 +1,16 @@
+<template>
+  <h1>{title}</h1>
+  <p>{blurb}</p>
+</template>
+
+<script>
+export const prerender = true;
+
+export async function load(ctx) {
+  ctx.store.set(
+    "docs:home",
+    { title: "Luxel docs", blurb: "SSG home page (docs-site fixture)." },
+    { tags: ["docs"] },
+  );
+}
+</script>

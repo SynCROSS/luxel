@@ -56,6 +56,21 @@ export class ResourceStore {
     }
   }
 
+  mergeSnapshot(snapshot: ResourceSnapshot): void {
+    for (const [key, incoming] of Object.entries(snapshot)) {
+      const local = this.#entries.get(key);
+      if (local && incoming.generation < local.generation) continue;
+      this.#entries.set(key, {
+        key,
+        value: incoming.value,
+        tags: [...incoming.tags],
+        cache: { ...incoming.cache },
+        generation: incoming.generation,
+        stale: incoming.stale,
+      });
+    }
+  }
+
   snapshot(): ResourceSnapshot {
     const out: ResourceSnapshot = {};
     for (const entry of this.#entries.values()) {

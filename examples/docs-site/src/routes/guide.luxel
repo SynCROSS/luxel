@@ -1,0 +1,16 @@
+<template>
+  <h1>{headline}</h1>
+  <p><a href="/">Home</a></p>
+</template>
+
+<script>
+export const revalidate = 30;
+
+export async function load(ctx) {
+  ctx.store.set(
+    "docs:guide",
+    { headline: "ISR guide" },
+    { tags: ["docs"] },
+  );
+}
+</script>

@@ -1,6 +1,9 @@
 import { escapeHtml } from "../html/escape.ts";
+import { serializeLuxelData, type TemplateBinding } from "../resource-store/luxel-data.ts";
+import type { ResourceSnapshot } from "../resource-store/types.ts";
 import type { DomOp } from "./dom-op.ts";
 import type { RenderIr } from "./render-ir.ts";
+import type { TemplateExpr } from "./semantic-ir.ts";
 
 export const ASSET_CLIENT = "client.dev0.js";
 
@@ -8,17 +11,21 @@ export type CodegenSsrOptions = {
   routePath: string;
   routeId: string;
   clientModule: string;
+  shipClientRuntime?: boolean;
 };
 
 export function codegenSsrDocument(
   ir: RenderIr,
-  data: Record<string, unknown>,
+  templateData: Record<string, unknown>,
+  resources: ResourceSnapshot,
   options: CodegenSsrOptions,
+  bindings: readonly TemplateBinding[],
 ): string {
-  const body = renderDomOps(ir.domOps, data, 6);
-  const dataJson = JSON.stringify(data);
+  const body = renderDomOps(ir.domOps, templateData, 6);
+  const dataJson = serializeLuxelData(resources);
   const hydrationJson = JSON.stringify({
     routeId: options.routeId,
+    bindings,
     boundaries: ir.boundaryIds.map((id) => ({
       id,
       directive: "load",
@@ -46,7 +53,7 @@ ${body}
     <script type="application/json" id="luxel-hydration">
       ${hydrationJson}
     </script>
-    ${ir.boundaryIds.length > 0 ? `<script type="module" src="/assets/${ASSET_CLIENT}"></script>` : ""}
+    ${options.shipClientRuntime ? `<script type="module" src="/assets/${ASSET_CLIENT}"></script>` : ""}
   </body>
 </html>`;
 }
@@ -62,7 +69,7 @@ function renderDomOps(ops: DomOp[], data: Record<string, unknown>, indent: numbe
         return `${pad}<!-- luxel:boundary-end id="${op.id}" -->`;
       }
       if (op.kind === "text") {
-        const value = resolveExpr(op.expr.raw, data);
+        const value = resolveTemplateExpr(op.expr, data);
         return `${pad}${escapeHtml(String(value))}`;
       }
       const { attrs, innerHtml } = buildElement(op, data, indent + 2);
@@ -97,7 +104,7 @@ function buildElement(
       continue;
     }
     if (child.kind === "text") {
-      innerParts.push(escapeHtml(String(resolveExpr(child.expr.raw, data))));
+      innerParts.push(escapeHtml(String(resolveTemplateExpr(child.expr, data))));
       continue;
     }
     if (child.kind === "element") {
@@ -110,6 +117,13 @@ function buildElement(
   }
 
   return { attrs, innerHtml: innerParts.join("") };
+}
+
+function resolveTemplateExpr(expr: TemplateExpr, data: Record<string, unknown>): unknown {
+  if (expr.kind === "literal") {
+    return JSON.parse(expr.raw) as unknown;
+  }
+  return resolveExpr(expr.raw, data);
 }
 
 function resolveExpr(raw: string, data: Record<string, unknown>): unknown {

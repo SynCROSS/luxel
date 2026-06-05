@@ -1,0 +1,142 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: bun install
+      - run: bun test packages/luxel/test
+      - run: bunx playwright install chromium --with-deps
+      - run: bunx playwright test
+        env:
+          CI: "1"
+
+  toolchain-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: bun install
+      - run: cd examples/counter && bun run --cwd ../../packages/luxel build
+      - run: cd examples/counter/dist/server && node start-node.mjs &
+      - run: sleep 2 && curl -sf http://127.0.0.1:3000/ | head -c 200
+
+  native-host-stub:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: npm install
+      - name: build shipped node host bundle (publish path)
+        run: node packages/luxel/scripts/build-node-host.mjs
+      - name: luxel-node build without Bun bridge
+        run: |
+          cd examples/counter
+          node ../../packages/luxel/bin/luxel-node.mjs build 2>&1 | tee /tmp/luxel-node-build.log
+          grep -q "built" /tmp/luxel-node-build.log
+          grep -q "\[esbuild\]" /tmp/luxel-node-build.log
+          grep -qv luxel-host /tmp/luxel-node-build.log
+          test -f dist/manifest.json
+          test -f ../../packages/luxel/dist/host/run.mjs
+      - name: luxel-node bench without Bun bridge
+        run: |
+          cd examples/counter
+          LUXEL_BENCH_SKIP_INP=1 node ../../packages/luxel/bin/luxel-node.mjs bench 2>&1 | tee /tmp/luxel-node-bench.log
+          grep -q '"fixture":"counter"' /tmp/luxel-node-bench.log
+          grep -qv luxel-host /tmp/luxel-node-bench.log
+      - name: luxel-node dev smoke
+        run: |
+          cd examples/counter
+          PORT=0 node ../../packages/luxel/bin/luxel-node.mjs dev > /tmp/luxel-node-dev.log 2>&1 &
+          pid=$!
+          for i in $(seq 1 60); do
+            grep -q "luxel dev http://" /tmp/luxel-node-dev.log && break
+            sleep 1
+          done
+          url=$(grep -o 'luxel dev http://[^ ]*' /tmp/luxel-node-dev.log | head -1 | awk '{print $3}')
+          curl -sf "$url" | grep -q "Hello Luxel"
+          kill $pid
+      - name: luxel-node serve node smoke
+        run: |
+          cd examples/counter
+          PORT=0 node ../../packages/luxel/bin/luxel-node.mjs serve node > /tmp/luxel-node-serve.log 2>&1 &
+          pid=$!
+          for i in $(seq 1 60); do
+            grep -q "luxel (node):" /tmp/luxel-node-serve.log && break
+            sleep 1
+          done
+          url=$(grep -o 'luxel (node): http://[^ ]*' /tmp/luxel-node-serve.log | head -1 | awk '{print $3}')
+          curl -sf "$url" | grep -q "Hello Luxel"
+          kill $pid
+      - name: luxel-deno build without Bun bridge
+        run: |
+          cd examples/counter
+          deno run --allow-read --allow-env --allow-write --allow-net --allow-run --allow-sys ../../packages/luxel/bin/luxel-deno.ts build 2>&1 | tee /tmp/luxel-deno-build.log
+          grep -q "built" /tmp/luxel-deno-build.log
+          grep -qv luxel-host /tmp/luxel-deno-build.log
+          test -f dist/manifest.json
+      - name: luxel-deno bench without Bun bridge
+        run: |
+          cd examples/counter
+          LUXEL_BENCH_SKIP_INP=1 deno run --allow-read --allow-env --allow-write --allow-net --allow-run --allow-sys ../../packages/luxel/bin/luxel-deno.ts bench 2>&1 | tee /tmp/luxel-deno-bench.log
+          grep -q '"fixture":"counter"' /tmp/luxel-deno-bench.log
+          grep -qv luxel-host /tmp/luxel-deno-bench.log
+
+  package-managers:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package-manager: [npm, pnpm, yarn, bun]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: oven-sh/setup-bun@v2
+      - name: Enable Corepack (pnpm/yarn)
+        if: matrix.package-manager == 'pnpm' || matrix.package-manager == 'yarn'
+        run: corepack enable
+      - name: Install dependencies (npm)
+        if: matrix.package-manager == 'npm'
+        run: npm install
+      - name: Install dependencies (pnpm)
+        if: matrix.package-manager == 'pnpm'
+        run: pnpm install
+      - name: Install dependencies (yarn)
+        if: matrix.package-manager == 'yarn'
+        run: yarn install
+      - name: Install dependencies (bun)
+        if: matrix.package-manager == 'bun'
+        run: bun install
+      - name: Build counter example
+        run: cd examples/counter && bun ../../packages/luxel/src/cli.ts build
+      - name: Unit tests
+        run: bun test packages/luxel/test
+        env:
+          LUXEL_BENCH_SKIP_INP: "1"
+          CI: "1"

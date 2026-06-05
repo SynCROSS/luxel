@@ -1,24 +1,24 @@
 import { createTestServer } from "../test/server.ts";
 import { compileCounterApp } from "../route/compile-app.ts";
 import { bundleClient } from "../build/client-bundle.ts";
-import { join } from "node:path";
+import { BENCH_ITERATIONS, runFetchThroughputBench } from "./competitors/throughput-harness.ts";
+import { getLuxelRepoRoot } from "../paths.ts";
 
-export async function runCounterBench(): Promise<{ throughputRps: number; clientBytes: number }> {
-  const repoRoot = join(import.meta.dir, "../../../..");
+export async function runCounterBench(): Promise<{
+  throughputRps: number;
+  clientBytes: number;
+  htmlBytes: number;
+}> {
+  const repoRoot = getLuxelRepoRoot();
   const server = await createTestServer();
-  const iterations = 500;
-  const start = performance.now();
-  for (let i = 0; i < iterations; i++) {
-    const res = await fetch(server.url);
-    if (!res.ok) throw new Error(`bench request failed: ${res.status}`);
-    await res.text();
-  }
-  const elapsedMs = performance.now() - start;
-  const throughputRps = (iterations / elapsedMs) * 1000;
+  const sampleRes = await fetch(server.url);
+  const sampleHtml = await sampleRes.text();
+  const htmlBytes = new TextEncoder().encode(sampleHtml).byteLength;
+  const { throughputRps } = await runFetchThroughputBench(server.url, BENCH_ITERATIONS);
   const app = await compileCounterApp(repoRoot);
   const genRoot = await app.writeCache();
   const { js } = await bundleClient(genRoot);
   const clientBytes = new TextEncoder().encode(js).byteLength;
   server.close();
-  return { throughputRps, clientBytes };
+  return { throughputRps, clientBytes, htmlBytes };
 }

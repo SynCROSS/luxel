@@ -53,7 +53,7 @@ describe("wrapCompress", () => {
   });
 
   test("responses below size floor stay identity-encoded", async () => {
-    const appFetch = await counterFetch({ threshold: 1024 });
+    const appFetch = await counterFetch({ threshold: 2048 });
     const res = await appFetch(
       new Request("http://test.local/", { headers: { "accept-encoding": "gzip" } }),
     );

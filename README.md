@@ -11,7 +11,7 @@ Bun-first, Vite-free web framework for fast, secure, trisomorphic apps.
 
 **Prototype slice + M11 complete** on `examples/counter`: `compileCounterApp` (Semantic IR → Render IR → SSR/attach codegen), progressive boundary hydration, `luxel dev|build|bench`, multi-route (`/` + `/about`), streaming SSR spike (`?stream=1`).
 
-**Next:** post-prototype [resource store](./docs/adr/0001-resource-store-phase-1.md) (server + client nav), then trisomorphic service worker. Tracked in [GitHub #13](https://github.com/SynCROSS/luxel/issues/13).
+- **Examples:** [counter](./examples/counter) · [nav-demo](./examples/nav-demo) · [docs-site](./examples/docs-site)
 
 ```bash
 bun test packages/luxel/test

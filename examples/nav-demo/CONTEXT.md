@@ -4,13 +4,19 @@ Phase-1 proof app for **resource store**, **tag revalidation**, and (later) clie
 
 ## Dev
 
-From this directory (or anywhere under it):
+From repo root (after `bun install` at root):
 
 ```bash
-bun run --cwd ../../packages/luxel luxel dev
+bun run dev:nav-demo
 ```
 
-CLI picks `examples/nav-demo` via `luxel.config.ts` discovery. From repo root, `luxel dev` still serves **counter**.
+From this app directory:
+
+```bash
+bun run dev
+```
+
+`luxel` comes from `@luxel/luxel` workspace bin. CLI picks `examples/nav-demo` via `luxel.config.ts` when cwd is under this app. From repo root, `bun run dev` (toolchain only) or `bun run dev:counter` serves **counter**.
 
 ## Routes
 

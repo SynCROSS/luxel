@@ -9,8 +9,20 @@
 | Node 20–22.14 deploy | N/A | br → gzip → deflate (zstd skipped) | Same |
 | Edge / Workers | No | No | No |
 | Full toolchain on host | Yes (pre-v1) | Deploy only | Deploy only |
+| v1.1 native host (`luxel-node.mjs` / `luxel-deno.ts`, no Bun) | Yes (rc) | Yes — `dev` / `build` / `bench` / `serve` | Yes — `dev` / `build` / `bench` / `serve` |
 
-v1 **phase A** adds Bun/Node/Deno parity for dev, build, bench, and framework tests. See [ADR-0003](./adr/0003-multi-runtime-deploy.md).
+**v1.0** tag: app + perf + package-manager gates; author toolchain Bun-only; Node/Deno **deploy**. **v1.1** tag: native host (`luxel-node` / `luxel-deno`, esbuild backend) on Node/Deno (no Bun on PATH). Host work runs in parallel with v1.0; see [ADR-0003](./adr/0003-multi-runtime-deploy.md).
+
+## Package managers (v1.0 exit)
+
+| Manager | Install | Notes |
+|---------|---------|--------|
+| npm | `npm install` | npm workspaces (`package.json`) |
+| pnpm | `pnpm install` | `pnpm-workspace.yaml` |
+| yarn | `yarn install` | Corepack Yarn 4+; `package.json` workspaces |
+| bun | `bun install` | `bun.lock` |
+
+CI matrix on main must pass **install → `luxel build` (counter) → `bun test packages/luxel/test`** for all four. Toolchain still invokes Bun for `luxel` CLI through v1.0; only **dependency install** is manager-specific.
 
 ## Local production smoke
 

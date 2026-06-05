@@ -10,7 +10,7 @@ export function resolveAppDir(cwd: string, repoRoot: string): string {
     const configPath = join(dir, "luxel.config.ts");
     if (existsSync(configPath)) {
       const rel = relative(repoRoot, dir).replace(/\\/g, "/");
-      if (rel && !rel.startsWith("..")) return rel;
+      if (!rel.startsWith("..")) return rel || ".";
     }
     const parent = dirname(dir);
     if (parent === dir) break;

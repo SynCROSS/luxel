@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { createServer, type Server } from "node:http";
 import { loadAppFromDist } from "../deploy/load-app.ts";
 import { createAppServerFetch } from "../server/handler.ts";
@@ -28,7 +30,13 @@ export async function serveLuxel(options: ServeLuxelOptions): Promise<LuxelNodeS
       ? resolveProductionCompressOptions()
       : { enabled: false });
 
-  const fetch = createAppServerFetch({ app, clientBundle, compress });
+  const staticRoot = join(options.distDir, "static");
+  const fetch = createAppServerFetch({
+    app,
+    clientBundle,
+    compress,
+    staticRoot: existsSync(staticRoot) ? staticRoot : undefined,
+  });
 
   const server: Server = createServer((req, res) => {
     void sendFetchToNodeResponse(fetch, req, res).catch((err) => {

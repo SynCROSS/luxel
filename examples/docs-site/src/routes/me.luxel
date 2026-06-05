@@ -1,0 +1,10 @@
+<template>
+  <h1>{greeting}</h1>
+</template>
+
+<script>
+export async function load(ctx) {
+  const userId = ctx.session?.userId ?? "guest";
+  ctx.store.set("docs:me", { greeting: userId === "guest" ? "Sign in" : `Hi ${userId}` });
+}
+</script>

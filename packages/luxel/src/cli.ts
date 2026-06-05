@@ -1,9 +1,11 @@
 #!/usr/bin/env bun
 import { existsSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { buildApp } from "./build/build-app.ts";
 import { devApp } from "./dev/serve.ts";
-import { runCounterBench } from "./bench/counter.ts";
+import { evaluateBenchGate } from "./bench/gate.ts";
+import { runBenchRegistry } from "./bench/registry.ts";
 import { resolveAppDir } from "./config/resolve-app.ts";
 import { serveProd } from "./serve-prod.ts";
 
@@ -33,15 +35,36 @@ async function main() {
   }
 
   if (cmd === "dev") {
-    const { url, appDir: served } = await devApp(repoRoot, appDir);
+    const { url, appDir: served } = await devApp(repoRoot, appDir, {
+      port: Number(process.env.PORT ?? "3000"),
+    });
     console.log(`luxel dev ${url} (${served})`);
     await new Promise(() => {});
   }
 
   if (cmd === "bench") {
-    const { throughputRps, clientBytes } = await runCounterBench();
-    console.log(`counter SSR throughput: ${throughputRps.toFixed(0)} req/s`);
-    console.log(`counter client JS size: ${clientBytes} bytes`);
+    const gateMode = process.argv.includes("--gate");
+    const skipInp =
+      process.env.LUXEL_BENCH_SKIP_INP === "1" || process.env.LUXEL_BENCH_SKIP_INP === "true";
+    const benchLines: string[] = [];
+    const parsed: Parameters<typeof evaluateBenchGate>[0] = [];
+    for await (const line of runBenchRegistry({ skipInp })) {
+      const json = JSON.stringify(line);
+      console.log(json);
+      benchLines.push(json);
+      parsed.push(line);
+    }
+    const gate = evaluateBenchGate(parsed);
+    const gateJson = JSON.stringify(gate);
+    console.log(gateJson);
+    benchLines.push(gateJson);
+    const out = process.env.LUXEL_BENCH_OUT;
+    if (out) {
+      await writeFile(out, `${benchLines.join("\n")}\n`, "utf8");
+    }
+    if (gateMode && !gate.ok) {
+      process.exit(1);
+    }
     return;
   }
 
@@ -55,7 +78,7 @@ async function main() {
     return;
   }
 
-  console.error("usage: luxel <dev|build|bench|serve>");
+  console.error("usage: luxel <dev|build|bench [--gate]|serve>");
   process.exit(1);
 }
 

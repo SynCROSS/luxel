@@ -20,10 +20,10 @@
     </main>
 
     <script type="application/json" id="luxel-data">
-      {"message":"Hello Luxel"}
+      {"version":2,"resources":{"route:index:message":{"value":{"message":"Hello Luxel"},"generation":0,"tags":["home"],"cache":{},"stale":false}}}
     </script>
     <script type="application/json" id="luxel-hydration">
-      {"routeId":"route:index","boundaries":[{"id":"boundary:0","directive":"load","clientModule":"client/routes/index.js"}]}
+      {"routeId":"route:index","bindings":[{"templateId":"message","resourceKey":"route:index:message","field":"message"}],"boundaries":[{"id":"boundary:0","directive":"load","clientModule":"client/routes/index.js"}]}
     </script>
     <script type="module" src="/assets/client.dev0.js"></script>
   </body>

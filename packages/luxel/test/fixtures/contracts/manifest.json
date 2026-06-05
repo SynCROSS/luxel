@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "routes": [
     {
       "id": "route:index",
@@ -7,6 +7,15 @@
       "source": "examples/counter/src/routes/index.luxel",
       "mode": "ssr",
       "hasLoad": true,
+      "hasPrefetch": false,
+      "bindings": [
+        {
+          "templateId": "message",
+          "resourceKey": "route:index:message",
+          "field": "message"
+        }
+      ],
+      "offline": "none",
       "serverModule": "server/routes/index.js",
       "clientModule": "client/routes/index.js",
       "hydration": [

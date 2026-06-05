@@ -6,7 +6,8 @@ import { classifyExpr } from "./semantic-ir.ts";
 type Token =
   | { kind: "open"; tag: string; attrs: string; selfClose: boolean }
   | { kind: "close"; tag: string }
-  | { kind: "expr"; raw: string };
+  | { kind: "expr"; raw: string }
+  | { kind: "text"; raw: string };
 
 export type LoweredTemplate = {
   domOps: DomOp[];
@@ -40,7 +41,14 @@ function tokenize(source: string): Token[] {
       i = end + 1;
       continue;
     }
-    if (source[i] !== "<") throw parseError(`unexpected ${source[i]}`);
+    if (source[i] !== "<") {
+      let j = i;
+      while (j < source.length && source[j] !== "<" && source[j] !== "{") j++;
+      const raw = source.slice(i, j).trim();
+      if (raw) tokens.push({ kind: "text", raw });
+      i = j;
+      continue;
+    }
     const end = source.indexOf(">", i);
     if (end < 0) throw parseError("unclosed tag");
     const tagSource = source.slice(i + 1, end).trim();
@@ -69,6 +77,12 @@ function parseOps(
   while (pos < tokens.length) {
     const tok = tokens[pos]!;
     if (tok.kind === "close") return { ops, pos };
+
+    if (tok.kind === "text") {
+      ops.push({ kind: "text", expr: { kind: "literal", raw: JSON.stringify(tok.raw) } });
+      pos++;
+      continue;
+    }
 
     if (tok.kind === "expr") {
       ops.push({ kind: "text", expr: classifyExpr(tok.raw) });

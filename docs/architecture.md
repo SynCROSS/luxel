@@ -1,18 +1,18 @@
 # Luxel Architecture (compact)
 
-**Product:** Luxel · **Packages:** `@luxel/*` · **CLI:** `luxel` · **Runtime:** Bun toolchain pre-v1; Node/Deno deploy (see ADR-0003)
+**Product:** Luxel · **Packages:** `@luxel/*` · **CLI:** `luxel` · **Runtime:** Bun toolchain through v1.0; Node/Deno deploy pre-v1.0; toolchain parity at v1.1 (see ADR-0003)
 
 ## 1. Goals
 
 | Axis | Target |
 |------|--------|
 | Tooling | Vite-free hard ban (no Vite, Rollup, Vite plugin API) |
-| Runtime | **Phase B:** Bun-only toolchain; production server on Node 20+ and Deno 2+. **v1:** full parity on Bun, Node, Deno. Edge adapters after server path. [ADR-0003](./adr/0003-multi-runtime-deploy.md) |
+| Runtime | **Phase B / v1.0:** Bun-only toolchain (`luxel build` / `dev` / `bench`); production server on Node 20+ and Deno 2+. **v1.1:** full toolchain parity on Bun, Node, Deno. Edge adapters after server path. [ADR-0003](./adr/0003-multi-runtime-deploy.md) |
 | Client | Fine-grained reactive DOM; signals + compiler sugar |
 | Render | Streaming SSR, progressive hydration, SSG, ISR, trisomorphic (server + page + SW) |
-| Perf | Smallest JS, fastest hydration/INP, SSR throughput, build/HMR, Web Vitals (scorecard + per-metric) |
-| Security | No RSC-style payloads; hardened server fns; compiler + runtime + supply chain |
-| v1 | Stable 1.0 with full feature set, semver + stability matrix + migrations |
+| Perf | **Ladder:** Web Vitals/INP → fair per-request SSR/ISR/SSG/trisomorphic (render worker) → [js-framework-benchmark](https://krausest.github.io/js-framework-benchmark/current.html) parity → bytes; scorecard per-metric |
+| Security | No RSC-style payloads; hardened server fns; compiler + runtime + supply chain; [threat-model surface tables](./threat-model.md) |
+| v1 | **v1.0:** app framework complete (SSG/ISR, server fns, auth, trisomorphic SW, docs dogfood, bench scorecard, semver + stability matrix); Bun-only toolchain; Node/Deno deploy. **v1.1:** toolchain parity + plugin sandbox. Edge adapters after. |
 
 ## 2. Stack
 
@@ -99,7 +99,7 @@ Same templating + routing on server, browser page, and service worker. SW render
 
 ## 11. Benchmarks
 
-Shared fixtures: micro (counter/list/table), app (blog/dashboard/ecommerce/auth), server stress (dynamic route, stream, ISR). Compare React, Vue/Vapor, Solid, Svelte, Fastify, Luxel. Weighted scorecard; publish per-metric; no category may regress badly.
+Shared fixtures: micro (counter/list/table), app (blog/dashboard/ecommerce/auth), server stress (dynamic route, stream, ISR, trisomorphic SW). Compare React, Vue/Vapor, Solid, Svelte, Fastify, Luxel. **Fairness:** server benches = full per-request render pipeline (no pre-baked HTML for framework SSR rows); client benches = krausest conditions. Weighted scorecard follows claim ladder in `CONTEXT.md`; publish per-metric; no tier may regress badly vs comparison class.
 
 ## 12. Implementation order
 
@@ -111,7 +111,7 @@ Shared fixtures: micro (counter/list/table), app (blog/dashboard/ecommerce/auth)
 
 ## 13. ADRs
 
-- [0003 Multi-runtime deploy](./adr/0003-multi-runtime-deploy.md) — phase B Node/Deno prod; v1 toolchain parity
+- [0003 Multi-runtime deploy](./adr/0003-multi-runtime-deploy.md) — phase B / v1.0 Node+Deno deploy, Bun toolchain; v1.1 toolchain parity
 - Bun-first + Bun.build core (toolchain pre-v1; see 0003)
 - No server components
 - JSON-only stream sidecars
@@ -123,4 +123,4 @@ Shared fixtures: micro (counter/list/table), app (blog/dashboard/ecommerce/auth)
 - Exact SFC directive grammar
 - Resumability timeline (post-1.0)
 - Edge adapter priority after phase B Node/Deno server (ADR-0003)
-- Benchmark scorecard weights
+- tier-2 server rps pass bar (geo mean vs fastest per mode: SSR/ISR/SSG/SW)

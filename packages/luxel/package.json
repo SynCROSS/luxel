@@ -3,7 +3,11 @@
   "version": "0.0.0",
   "type": "module",
   "bin": {
-    "luxel": "./src/cli.ts"
+    "luxel": "./src/cli.ts",
+    "luxel-node": "./bin/luxel-node.mjs"
+  },
+  "dependencies": {
+    "esbuild": "^0.25.0"
   },
   "exports": {
     ".": "./src/index.ts",
@@ -11,10 +15,29 @@
     "./node": "./src/node/serve.ts",
     "./deno": "./src/deno/serve.ts"
   },
+  "files": [
+    "bin",
+    "dist/host",
+    "src"
+  ],
   "scripts": {
     "test": "bun test",
     "dev": "bun src/cli.ts dev",
     "build": "bun src/cli.ts build",
-    "bench": "bun src/cli.ts bench"
+    "bench": "bun src/cli.ts bench",
+    "build:node-host": "node scripts/build-node-host.mjs",
+    "prepublishOnly": "node scripts/build-node-host.mjs",
+    "build:bench-wasm": "wat2wasm test/fixtures/plugins/fetch-import.wat -o test/fixtures/plugins/fetch-import.wasm"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0",
+    "fastify": "^5.3.3",
+    "fastify-html": "^0.7.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "solid-js": "^1.9.7",
+    "svelte": "^5.33.0",
+    "vue": "^3.5.16",
+    "wabt": "^1.0.37"
   }
 }

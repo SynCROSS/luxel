@@ -1,0 +1,14 @@
+<template>
+  <h1>{greeting}</h1>
+</template>
+
+<script>
+export async function load(ctx) {
+  const userId = ctx.session?.userId ?? "guest";
+  ctx.store.set(
+    "nav:account:view",
+    { greeting: userId === "guest" ? "Sign in" : `Hello ${userId}` },
+    { tags: ["account"] },
+  );
+}
+</script>

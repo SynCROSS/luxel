@@ -4,7 +4,10 @@
   "workspaces": ["packages/*", "examples/*"],
   "scripts": {
     "test": "bun test packages/luxel/test",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "dev": "bun run --cwd packages/luxel dev",
+    "dev:counter": "bun run --cwd examples/counter dev",
+    "dev:nav-demo": "bun run --cwd examples/nav-demo dev"
   },
   "devDependencies": {
     "@playwright/test": "^1.52.0",
