@@ -1,0 +1,18 @@
+[package]
+name = "luxel-core"
+version = "0.0.0"
+edition = "2021"
+description = "Luxel native SSR hot paths"
+
+[lib]
+crate-type = ["cdylib"]
+name = "luxel_core"
+
+[dependencies]
+napi = { version = "2.3", default-features = false, features = ["napi4"] }
+napi-derive = "2.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[build-dependencies]
+napi-build = "2.3"

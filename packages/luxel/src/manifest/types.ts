@@ -7,6 +7,8 @@ export type Manifest = {
     path: string;
     source: string;
     mode: "ssr" | "ssg" | "isr";
+    /** SSR execution backend; default ts. native = luxel-core hot path when eligible. */
+    ssr?: "ts" | "native";
     revalidateSeconds?: number;
     hasLoad: boolean;
     hasPrefetch?: boolean;

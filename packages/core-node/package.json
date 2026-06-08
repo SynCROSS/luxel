@@ -1,0 +1,15 @@
+{
+  "name": "@luxel/core-node",
+  "version": "0.0.0",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "napi": {
+    "binaryName": "luxel-core"
+  },
+  "scripts": {
+    "build": "napi build --platform --release --cargo-cwd ../../crates/luxel-core"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^2.18.4"
+  }
+}

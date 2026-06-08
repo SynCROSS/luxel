@@ -29,6 +29,8 @@ import {
   codegenPrecomputedWithFallbackModule,
   codegenServerModuleSrc,
 } from "./codegen-route-runtime.ts";
+import { assertSpiralNativeEligible } from "./spiral-native.ts";
+import { renderSpiralRouteDocumentFromStore } from "../luxel-core/spiral-native.ts";
 
 export type CompileRouteOptions = {
   routeId: string;
@@ -39,6 +41,7 @@ export type CompileRouteOptions = {
   genRoot: string;
   bundleBackend?: BundleBackend;
   configClientHydration?: ClientHydration;
+  ssrBackend?: "ts" | "native";
 };
 
 export type CompiledRoute = {
@@ -74,6 +77,10 @@ export async function compileRoute(sfcPath: string, options: CompileRouteOptions
     configClientHydration: options.configClientHydration,
   });
   const { renderIr, sfc, bindings, mode, offline, script } = analysis;
+  const ssrBackend = options.ssrBackend ?? "ts";
+  if (ssrBackend === "native") {
+    assertSpiralNativeEligible(renderIr);
+  }
 
   const codegenOpts: CodegenSsrOptions = {
     routePath: options.path,
@@ -126,6 +133,7 @@ export async function compileRoute(sfcPath: string, options: CompileRouteOptions
     ...(serverFunctions.length > 0 ? { serverFunctions } : {}),
     client: { hydration: analysis.clientHydration },
     shipSidecars: analysis.shipSidecars,
+    ...(ssrBackend === "native" ? { ssr: "native" as const } : {}),
   };
 
   const manifestComponent: Manifest["components"][number] = {
@@ -185,9 +193,9 @@ export async function compileRoute(sfcPath: string, options: CompileRouteOptions
   compiled.prefetch = routeFns.prefetch;
   compiled.serverFunctions = serverFunctions;
   compiled.callServerFn = routeFns.callServerFn;
-  compiled.renderFromStore = routeFns.renderFromStore;
+  compiled.renderFromStore = wrapRenderFromStore(routeFns.renderFromStore, ssrBackend);
   compiled.renderStreamFromStore = (store) =>
-    streamHtmlDocument(routeFns.renderFromStore(store));
+    streamHtmlDocument(compiled.renderFromStore(store));
 
   if (script.staticLoadEligible) {
     const warmStore = new ResourceStore();
@@ -230,12 +238,28 @@ export async function compileRoute(sfcPath: string, options: CompileRouteOptions
     compiled.load = refreshed.load;
     compiled.prefetch = refreshed.prefetch;
     compiled.callServerFn = refreshed.callServerFn;
-    compiled.renderFromStore = refreshed.renderFromStore;
+    compiled.renderFromStore = wrapRenderFromStore(refreshed.renderFromStore, ssrBackend);
     compiled.renderStreamFromStore = (store) =>
-      streamHtmlDocument(refreshed.renderFromStore(store));
+      streamHtmlDocument(compiled.renderFromStore(store));
   }
 
   return compiled;
+}
+
+function wrapRenderFromStore(
+  tsRender: (store: ResourceStore) => string,
+  ssrBackend: "ts" | "native",
+): (store: ResourceStore) => string {
+  if (ssrBackend !== "native") {
+    return tsRender;
+  }
+  return (store) => {
+    try {
+      return renderSpiralRouteDocumentFromStore(store);
+    } catch {
+      return tsRender(store);
+    }
+  };
 }
 
 type RouteFns = {

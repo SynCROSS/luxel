@@ -10,6 +10,8 @@ import { loadLuxelConfig } from "../config/load.ts";
 
 export type CompileAppOptions = {
   bundleBackend?: BundleBackend;
+  /** Per-route SSR backend overrides (luxel.config `routes[path].ssr` wins when set). */
+  routeSsrBackends?: Record<string, "ts" | "native">;
 };
 
 export type CompiledApp = {
@@ -48,6 +50,10 @@ export async function compileApp(
         genRoot,
         bundleBackend,
         configClientHydration: luxelConfig.routes?.[route.path]?.client?.hydration,
+        ssrBackend:
+          options?.routeSsrBackends?.[route.path] ??
+          luxelConfig.routes?.[route.path]?.ssr ??
+          "ts",
       }),
     );
   }

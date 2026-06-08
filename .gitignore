@@ -24,3 +24,5 @@ packages/bench/competitors/**/.vinxi/
 packages/luxel/src/.bench/
 packages/luxel/test/.tmp-*/
 .tmp-*.md
+/target/
+packages/core-node/*.node

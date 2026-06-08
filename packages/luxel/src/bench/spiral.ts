@@ -8,15 +8,25 @@ import { getLuxelRepoRoot } from "../paths.ts";
 
 const WORKER_ITERATIONS = 100;
 
-export async function runSpiralBench(): Promise<{
+export type SpiralBenchOptions = {
+  ssrBackend?: "ts" | "native";
+};
+
+export type SpiralBenchResult = {
   throughputRps: number;
   renderWorkerRps: number;
   htmlBytes: number;
   tileCount: number;
-}> {
+  ssrBackend: "ts" | "native";
+};
+
+export async function runSpiralBench(options: SpiralBenchOptions = {}): Promise<SpiralBenchResult> {
   const repoRoot = getLuxelRepoRoot();
   const appDir = await ensureSpiralFixture(repoRoot);
-  const app = await compileApp(repoRoot, appDir);
+  const ssrBackend = options.ssrBackend ?? "native";
+  const app = await compileApp(repoRoot, appDir, {
+    routeSsrBackends: { "/": ssrBackend },
+  });
   const worker = createRenderWorker(app);
   const sample = await worker.render("/");
   const htmlBytes = new TextEncoder().encode(sample.html).byteLength;
@@ -35,8 +45,18 @@ export async function runSpiralBench(): Promise<{
       renderWorkerRps,
       htmlBytes,
       tileCount: spiralTileCount(),
+      ssrBackend,
     };
   } finally {
     server.close();
   }
+}
+
+export async function runSpiralBenchCompare(): Promise<{
+  ts: SpiralBenchResult;
+  native: SpiralBenchResult;
+}> {
+  const ts = await runSpiralBench({ ssrBackend: "ts" });
+  const native = await runSpiralBench({ ssrBackend: "native" });
+  return { ts, native };
 }

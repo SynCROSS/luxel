@@ -27,6 +27,13 @@
         "@luxel/luxel": "workspace:*",
       },
     },
+    "examples/spiral": {
+      "name": "@luxel/example-spiral",
+      "version": "0.0.0",
+      "dependencies": {
+        "@luxel/luxel": "workspace:*",
+      },
+    },
     "packages/bench": {
       "name": "@luxel/bench",
       "version": "0.0.0",
@@ -53,6 +60,13 @@
         "vue-vapor": "npm:vue@3.6.0-beta.14",
       },
     },
+    "packages/core-node": {
+      "name": "@luxel/core-node",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@napi-rs/cli": "^2.18.4",
+      },
+    },
     "packages/luxel": {
       "name": "@luxel/luxel",
       "version": "0.0.0",
@@ -61,6 +75,7 @@
         "luxel-node": "./bin/luxel-node.mjs",
       },
       "dependencies": {
+        "@luxel/core-node": "workspace:*",
         "esbuild": "^0.25.0",
       },
       "devDependencies": {
@@ -262,13 +277,19 @@
 
     "@luxel/bench": ["@luxel/bench@workspace:packages/bench"],
 
+    "@luxel/core-node": ["@luxel/core-node@workspace:packages/core-node"],
+
     "@luxel/example-counter": ["@luxel/example-counter@workspace:examples/counter"],
+
+    "@luxel/example-spiral": ["@luxel/example-spiral@workspace:examples/spiral"],
 
     "@luxel/luxel": ["@luxel/luxel@workspace:packages/luxel"],
 
     "@luxel/nav-demo": ["@luxel/nav-demo@workspace:examples/nav-demo"],
 
     "@mapbox/node-pre-gyp": ["@mapbox/node-pre-gyp@2.0.3", "", { "dependencies": { "consola": "^3.2.3", "detect-libc": "^2.0.0", "https-proxy-agent": "^7.0.5", "node-fetch": "^2.6.7", "nopt": "^8.0.0", "semver": "^7.5.3", "tar": "^7.4.0" }, "bin": { "node-pre-gyp": "bin/node-pre-gyp" } }, "sha512-uwPAhccfFJlsfCxMYTwOdVfOz3xqyj8xYL3zJj8f0pb30tLohnnFPhLuqp4/qoEz8sNxe4SESZedcBojRefIzg=="],
+
+    "@napi-rs/cli": ["@napi-rs/cli@2.18.4", "", { "bin": { "napi": "scripts/index.js" } }, "sha512-SgJeA4df9DE2iAEpr3M2H0OKl/yjtg1BnRI5/JyowS71tUWhrfSu2LT0V3vlHET+g1hBVlrO60PmEXwUEKp8Mg=="],
 
     "@next/env": ["@next/env@15.5.19", "", {}, "sha512-sWWluFvcv5v3Fxznmf2ZfjyoVQt/64oCnYqS90inQWGzMPK1VjvekPiz3OPHKmFT30EnHrjlbyaHLt3M0vWabw=="],
 

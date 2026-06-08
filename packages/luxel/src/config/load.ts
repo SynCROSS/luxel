@@ -10,7 +10,10 @@ export type LuxelConfig = {
   routesDir: string;
   outDir: string;
   server?: LuxelServerConfig;
-  routes?: Record<string, { client?: { hydration: "auto" | "never" } }>;
+  routes?: Record<
+    string,
+    { client?: { hydration: "auto" | "never" }; ssr?: "ts" | "native" }
+  >;
 };
 
 async function importConfigModule(configPath: string): Promise<Record<string, unknown>> {
@@ -55,6 +58,7 @@ export async function loadLuxelConfig(appRoot: string): Promise<LuxelConfig> {
     routesDir: cfg.routesDir ?? "src/routes",
     outDir: cfg.outDir ?? "dist",
     server: cfg.server,
+    routes: cfg.routes,
   };
 }
 
