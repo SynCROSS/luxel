@@ -1,30 +1,34 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { compileSemanticIr } from "./semantic-ir.ts";
-import { lowerToRenderIr } from "./render-ir.ts";
-import { codegenSsrDocument, ASSET_CLIENT, type CodegenSsrOptions } from "./codegen-ssr.ts";
+import { ASSET_CLIENT, codegenSsrDocument, type CodegenSsrOptions } from "./codegen-ssr.ts";
 import { codegenAttachModule } from "./codegen-attach.ts";
 import { codegenClientGlue } from "./codegen-client-glue.ts";
-import { parseSfc } from "./parse-sfc.ts";
 import { streamHtmlDocument } from "./stream-document.ts";
-import { inferTemplateBindings } from "./infer-bindings.ts";
 import type { TemplateBinding } from "../resource-store/luxel-data.ts";
 import type { ResourceStore } from "../resource-store/store.ts";
-import {
-  projectSnapshotToTemplateData,
-  projectStoreToTemplateData,
-} from "../resource-store/project-bindings.ts";
+import { projectSnapshotToTemplateData } from "../resource-store/project-bindings.ts";
 import { ResourceStore } from "../resource-store/store.ts";
 import { createLoadContext } from "../resource-store/load-context.ts";
 import { LUXEL_DATA_VERSION, type LuxelDataV2 } from "../resource-store/luxel-data.ts";
 import type { Manifest } from "../manifest/types.ts";
 import type { RenderIr } from "./render-ir.ts";
 import type { LoadContext } from "../resource-store/load-context.ts";
-import { inferStaticLoad } from "./infer-static-load.ts";
 import type { BundleBackend } from "../host/backends/types.ts";
 import { bundleEsm } from "../build/bundle-esm.ts";
 import { pickBundleBackend } from "../build/pick-bundle-backend.ts";
+import { analyzeRouteSfc } from "./analyze-route-sfc.ts";
+import type { ClientHydration } from "./analyze-script.ts";
+import {
+  codegenCompiledRenderModule,
+  codegenPrecomputedWithFallbackCompiledModule,
+  renderIrHasForLoop,
+} from "./codegen-compiled-ssr.ts";
+import {
+  codegenDynamicRenderModule,
+  codegenPrecomputedWithFallbackModule,
+  codegenServerModuleSrc,
+} from "./codegen-route-runtime.ts";
 
 export type CompileRouteOptions = {
   routeId: string;
@@ -34,6 +38,7 @@ export type CompileRouteOptions = {
   slug: string;
   genRoot: string;
   bundleBackend?: BundleBackend;
+  configClientHydration?: ClientHydration;
 };
 
 export type CompiledRoute = {
@@ -63,123 +68,38 @@ export type CompiledRoute = {
   writeCacheFiles: () => Promise<void>;
 };
 
-const RESERVED_SERVER_EXPORTS = new Set(["load", "prefetch"]);
-
-function inferOfflineMode(
-  mode: "ssr" | "ssg" | "isr",
-  override?: "none" | "static" | "stale" | "custom",
-): "none" | "static" | "stale" | "custom" {
-  if (override) return override;
-  if (mode === "ssg") return "static";
-  if (mode === "isr") return "stale";
-  return "none";
-}
-
-function parseOfflineExport(script: string): "none" | "static" | "stale" | "custom" | undefined {
-  const match = /export\s+const\s+offline\s*=\s*"(none|static|stale|custom)"/.exec(script);
-  return match ? (match[1] as "none" | "static" | "stale" | "custom") : undefined;
-}
-
-function resourceSnapshotsEqual(
-  a: import("../resource-store/types.ts").ResourceSnapshot,
-  b: import("../resource-store/types.ts").ResourceSnapshot,
-): boolean {
-  const aKeys = Object.keys(a).sort();
-  const bKeys = Object.keys(b).sort();
-  if (aKeys.length !== bKeys.length) return false;
-  for (let i = 0; i < aKeys.length; i++) {
-    if (aKeys[i] !== bKeys[i]) return false;
-    const left = a[aKeys[i]!]!;
-    const right = b[bKeys[i]!]!;
-    if (left.generation !== right.generation) return false;
-    if (JSON.stringify(left.value) !== JSON.stringify(right.value)) return false;
-  }
-  return true;
-}
-
-function discoverServerFunctions(script: string): string[] {
-  const names: string[] = [];
-  for (const match of script.matchAll(/export\s+async\s+function\s+(\w+)\s*\(/g)) {
-    const name = match[1]!;
-    if (!RESERVED_SERVER_EXPORTS.has(name)) names.push(name);
-  }
-  return names;
-}
-
 export async function compileRoute(sfcPath: string, options: CompileRouteOptions): Promise<CompiledRoute> {
   const source = await readFile(sfcPath, "utf8");
-  const semantic = compileSemanticIr(source);
-  const renderIr = lowerToRenderIr(semantic, source);
-  const sfc = parseSfc(source);
-  const hasClientBundle = renderIr.boundaryIds.length > 0;
-  const hasClientNav = /data-luxel-nav/.test(sfc.template);
-  const shipClientRuntime = hasClientBundle || hasClientNav;
+  const analysis = analyzeRouteSfc(source, options.routeId, {
+    configClientHydration: options.configClientHydration,
+  });
+  const { renderIr, sfc, bindings, mode, offline, script } = analysis;
 
   const codegenOpts: CodegenSsrOptions = {
     routePath: options.path,
     routeId: options.routeId,
     clientModule: `client/routes/${options.slug}.js`,
-    shipClientRuntime,
+    shipClientRuntime: analysis.shipSidecars.clientScript,
+    shipDataSidecar: analysis.shipSidecars.data,
+    shipHydrationSidecar: analysis.shipSidecars.hydration,
   };
 
-  const bindings = inferTemplateBindings(options.routeId, semantic, sfc.script);
-  const renderFromStore = (store: ResourceStore) => {
-    const templateData = projectStoreToTemplateData(store, bindings);
-    return codegenSsrDocument(renderIr, templateData, store.snapshot(), codegenOpts, bindings);
-  };
-  const renderStreamFromStore = (store: ResourceStore) =>
-    streamHtmlDocument(renderFromStore(store));
-  const hasPrefetch = /\bexport\s+async\s+function\s+prefetch\s*\(/m.test(sfc.script);
-  const prerender =
-    /export\s+const\s+prerender\s*=\s*true\b/.test(sfc.script) &&
-    !/export\s+const\s+prerender\s*=\s*false\b/.test(sfc.script);
-  const revalidateMatch = /export\s+const\s+revalidate\s*=\s*(\d+)/.exec(sfc.script);
-  const revalidateSeconds = revalidateMatch ? Number(revalidateMatch[1]) : undefined;
-  const readsSession = /\bctx\.session\b/.test(sfc.script);
-  const mode = readsSession
-    ? "ssr"
-    : prerender
-      ? "ssg"
-      : revalidateSeconds !== undefined
-        ? "isr"
-        : "ssr";
-  const offline = inferOfflineMode(mode, parseOfflineExport(sfc.script));
-
-  const attachModuleSrc = hasClientBundle ? codegenAttachModule(renderIr) : null;
-  const scriptPrefix = hasClientBundle ? `import { signal } from "../../../../runtime/signal.ts";\n` : "";
-  const glue = hasClientBundle ? `\n\n${codegenClientGlue(`./${options.slug}.attach.ts`)}` : "";
+  const attachModuleSrc = analysis.hasClientBundle ? codegenAttachModule(renderIr) : null;
+  const scriptPrefix = analysis.hasClientBundle
+    ? `import { signal } from "../../../../runtime/signal.ts";\n`
+    : "";
+  const glue = analysis.hasClientBundle
+    ? `\n\n${codegenClientGlue(`./${options.slug}.attach.ts`, analysis.handlerSymbols)}`
+    : "";
   const clientModuleSrc = `${scriptPrefix}${sfc.script.trim()}${glue}`;
 
-  const staticLoad = inferStaticLoad(sfc.script);
-  const ssrOptsJson = JSON.stringify(codegenOpts);
-  const bindingsJson = JSON.stringify(bindings);
-  const dynamicRenderModuleSrc = [
-    `import { codegenSsrDocument } from "../../../../compiler/codegen-ssr.ts";`,
-    `import { projectSnapshotToTemplateData } from "../../../../resource-store/project-bindings.ts";`,
-    `import type { ResourceStore } from "../../../../resource-store/store.ts";`,
-    `import type { RenderIr } from "../../../../compiler/render-ir.ts";`,
-    ``,
-    `const renderIr = ${JSON.stringify(renderIr)} as RenderIr;`,
-    `const codegenOpts = ${ssrOptsJson} as const;`,
-    `const BINDING_MAP = ${bindingsJson} as const;`,
-    ``,
-    `export function renderRouteDocumentFromStore(store: ResourceStore): string {`,
-    `  const snapshot = store.snapshot();`,
-    `  const templateData = projectSnapshotToTemplateData(snapshot, BINDING_MAP);`,
-    `  return codegenSsrDocument(renderIr, templateData, snapshot, codegenOpts, BINDING_MAP);`,
-    `}`,
-  ].join("\n");
+  const useCompiledListSsr = renderIrHasForLoop(renderIr.domOps);
+  let renderModuleSrc = useCompiledListSsr
+    ? codegenCompiledRenderModule(renderIr, codegenOpts, bindings)
+    : codegenDynamicRenderModule(renderIr, codegenOpts, bindings);
+  let serverModuleSrc = codegenServerModuleSrc(sfc.script, renderModuleSrc, analysis.hasClientBundle);
 
-  const serverImports = hasClientBundle ? `import { signal } from "../../../../runtime/signal.ts";\n` : "";
-  const serverModuleSrc = [
-    serverImports,
-    sfc.script.trim(),
-    ``,
-    dynamicRenderModuleSrc,
-    ``,
-  ].join("\n");
-
-  const serverFnNames = discoverServerFunctions(sfc.script);
+  const serverFnNames = script.serverFnNames;
   const serverFunctions = serverFnNames.map((name) => ({
     id: `${options.routeId}:${name}`,
     name,
@@ -191,9 +111,9 @@ export async function compileRoute(sfcPath: string, options: CompileRouteOptions
     source: options.source,
     mode,
     hasLoad: true,
-    hasPrefetch,
+    hasPrefetch: script.hasPrefetch,
     bindings,
-    ...(revalidateSeconds !== undefined ? { revalidateSeconds } : {}),
+    ...(script.revalidateSeconds !== undefined ? { revalidateSeconds: script.revalidateSeconds } : {}),
     offline,
     serverModule: `server/routes/${options.slug}.js`,
     clientModule: `client/routes/${options.slug}.js`,
@@ -204,6 +124,8 @@ export async function compileRoute(sfcPath: string, options: CompileRouteOptions
     })),
     assets: { client: `assets/${ASSET_CLIENT}` },
     ...(serverFunctions.length > 0 ? { serverFunctions } : {}),
+    client: { hydration: analysis.clientHydration },
+    shipSidecars: analysis.shipSidecars,
   };
 
   const manifestComponent: Manifest["components"][number] = {
@@ -218,19 +140,19 @@ export async function compileRoute(sfcPath: string, options: CompileRouteOptions
     path: options.path,
     routeId: options.routeId,
     mode,
-    revalidateSeconds,
+    revalidateSeconds: script.revalidateSeconds,
     offline,
     renderIr,
     manifestRoute,
     manifestComponent,
-    hasClientBundle,
-    shipClientRuntime,
+    hasClientBundle: analysis.hasClientBundle,
+    shipClientRuntime: analysis.shipClientRuntime,
     attachModuleSrc,
     clientModuleSrc,
     serverModuleSrc,
     bindings,
-    renderFromStore,
-    renderStreamFromStore,
+    renderFromStore: () => "",
+    renderStreamFromStore: () => new ReadableStream(),
     load: async () => {},
     serverFunctions: [],
     callServerFn: async () => {
@@ -254,7 +176,7 @@ export async function compileRoute(sfcPath: string, options: CompileRouteOptions
   const bundleBackend = options.bundleBackend ?? pickBundleBackend();
   const routeFns = await createRouteFns(
     serverDir,
-    compiled.serverModuleSrc,
+    serverModuleSrc,
     serverFnNames,
     bundleBackend,
     options.genRoot,
@@ -263,8 +185,11 @@ export async function compileRoute(sfcPath: string, options: CompileRouteOptions
   compiled.prefetch = routeFns.prefetch;
   compiled.serverFunctions = serverFunctions;
   compiled.callServerFn = routeFns.callServerFn;
+  compiled.renderFromStore = routeFns.renderFromStore;
+  compiled.renderStreamFromStore = (store) =>
+    streamHtmlDocument(routeFns.renderFromStore(store));
 
-  if (staticLoad) {
+  if (script.staticLoadEligible) {
     const warmStore = new ResourceStore();
     const warmCtx = createLoadContext(warmStore, null);
     if (routeFns.prefetch) await routeFns.prefetch(warmCtx);
@@ -279,38 +204,35 @@ export async function compileRoute(sfcPath: string, options: CompileRouteOptions
       codegenOpts,
       bindings,
     );
-    const renderModuleSrc = [
-      `import type { ResourceStore } from "../../../../resource-store/store.ts";`,
-      ``,
-      `const PRECOMPUTED_HTML = ${JSON.stringify(compiled.precomputedHtml)};`,
-      ``,
-      `export function renderRouteDocumentFromStore(_store: ResourceStore): string {`,
-      `  return PRECOMPUTED_HTML;`,
-      `}`,
-    ].join("\n");
-    compiled.serverModuleSrc = [serverImports, sfc.script.trim(), ``, renderModuleSrc, ``].join("\n");
-    await writeFile(join(serverDir, "server-entry.ts"), compiled.serverModuleSrc, "utf8");
-    await writeServerBundle(
+    renderModuleSrc = useCompiledListSsr
+      ? codegenPrecomputedWithFallbackCompiledModule(
+          renderIr,
+          codegenOpts,
+          bindings,
+          { html: compiled.precomputedHtml, data: compiled.precomputedData },
+        )
+      : codegenPrecomputedWithFallbackModule(
+          renderIr,
+          codegenOpts,
+          bindings,
+          { html: compiled.precomputedHtml, data: compiled.precomputedData },
+        );
+    serverModuleSrc = codegenServerModuleSrc(sfc.script, renderModuleSrc, analysis.hasClientBundle);
+    compiled.serverModuleSrc = serverModuleSrc;
+    await writeFile(join(serverDir, "server-entry.ts"), serverModuleSrc, "utf8");
+    const refreshed = await createRouteFns(
+      serverDir,
+      serverModuleSrc,
+      serverFnNames,
       bundleBackend,
       options.genRoot,
-      serverDir,
-      join(serverDir, "server-entry.ts"),
     );
-    const renderDynamic = (store: ResourceStore) => {
-      const snapshot = store.snapshot();
-      const templateData = projectSnapshotToTemplateData(snapshot, bindings);
-      return codegenSsrDocument(renderIr, templateData, snapshot, codegenOpts, bindings);
-    };
-    const precomputedResources = resources;
-    compiled.renderFromStore = (store) => {
-      const snapshot = store.snapshot();
-      if (resourceSnapshotsEqual(snapshot, precomputedResources)) {
-        return compiled.precomputedHtml!;
-      }
-      return renderDynamic(store);
-    };
+    compiled.load = refreshed.load;
+    compiled.prefetch = refreshed.prefetch;
+    compiled.callServerFn = refreshed.callServerFn;
+    compiled.renderFromStore = refreshed.renderFromStore;
     compiled.renderStreamFromStore = (store) =>
-      streamHtmlDocument(compiled.renderFromStore(store));
+      streamHtmlDocument(refreshed.renderFromStore(store));
   }
 
   return compiled;
@@ -320,6 +242,7 @@ type RouteFns = {
   load: (ctx: LoadContext) => Promise<void>;
   prefetch?: (ctx: LoadContext) => Promise<void>;
   callServerFn: (name: string, input: unknown) => Promise<unknown>;
+  renderFromStore: (store: ResourceStore) => string;
 };
 
 async function writeServerBundle(
@@ -350,6 +273,10 @@ async function createRouteFns(
   await writeFile(entry, serverModuleSrc, "utf8");
   const outPath = await writeServerBundle(bundleBackend, genRoot, serverDir, entry);
   const mod = (await import(pathToFileURL(outPath).href)) as Record<string, unknown>;
+  const renderFromStore = mod.renderRouteDocumentFromStore;
+  if (typeof renderFromStore !== "function") {
+    throw new Error("bundled route module missing renderRouteDocumentFromStore");
+  }
   return {
     load: (ctx) => (mod.load as (ctx: LoadContext) => Promise<void>)(ctx),
     prefetch: mod.prefetch
@@ -365,5 +292,6 @@ async function createRouteFns(
       }
       return await (fn as (input: unknown) => Promise<unknown>)(input);
     },
+    renderFromStore: (store) => (renderFromStore as (store: ResourceStore) => string)(store),
   };
 }

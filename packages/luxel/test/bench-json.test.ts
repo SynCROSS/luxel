@@ -17,7 +17,7 @@ function parseJsonLines(text: string): BenchJsonLine[] {
 describe("luxel bench JSON lines", () => {
   test("registry emits fixture, metric, value for counter", async () => {
     const lines: BenchJsonLine[] = [];
-    for await (const line of runBenchRegistry({ skipInp: true })) {
+    for await (const line of runBenchRegistry({ skipInp: true, skipSpiral: true })) {
       lines.push(line);
     }
     expect(lines.length).toBeGreaterThanOrEqual(2);
@@ -35,12 +35,21 @@ describe("luxel bench JSON lines", () => {
     expect(lines.some((r) => r.fixture === "table" && r.status === "pending")).toBe(true);
   });
 
+  test("spiral bench reports render worker throughput", async () => {
+    const { runSpiralBench } = await import("../src/bench/spiral.ts");
+    const result = await runSpiralBench();
+    expect(result.tileCount).toBeGreaterThan(2300);
+    expect(result.tileCount).toBeLessThan(2500);
+    expect(result.renderWorkerRps).toBeGreaterThan(0);
+    expect(result.throughputRps).toBeGreaterThan(0);
+  }, 120_000);
+
   test("CLI bench command prints one JSON object per line", async () => {
     const proc = Bun.spawn(["bun", "packages/luxel/src/cli.ts", "bench"], {
       cwd: repoRoot,
       stdout: "pipe",
       stderr: "pipe",
-      env: { ...process.env, LUXEL_BENCH_SKIP_INP: "1" },
+      env: { ...process.env, LUXEL_BENCH_SKIP_INP: "1", LUXEL_BENCH_SKIP_SPIRAL: "1" },
     });
     const [stdout, stderr, code] = await Promise.all([
       new Response(proc.stdout).text(),
@@ -60,7 +69,12 @@ describe("luxel bench JSON lines", () => {
       cwd: repoRoot,
       stdout: "pipe",
       stderr: "pipe",
-      env: { ...process.env, LUXEL_BENCH_OUT: outPath, LUXEL_BENCH_SKIP_INP: "1" },
+      env: {
+        ...process.env,
+        LUXEL_BENCH_OUT: outPath,
+        LUXEL_BENCH_SKIP_INP: "1",
+        LUXEL_BENCH_SKIP_SPIRAL: "1",
+      },
     });
     const code = await proc.exited;
     expect(code).toBe(0);

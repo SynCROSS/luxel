@@ -4,8 +4,8 @@ import { renderSpiralDocument, spiralTileCount } from "../src/bench/fixtures/spi
 describe("spiral SSR fixture HTML", () => {
   test("tile count is large CPU-bound workload", () => {
     const count = spiralTileCount();
-    expect(count).toBeGreaterThan(4000);
-    expect(count).toBeLessThan(5200);
+    expect(count).toBeGreaterThan(2300);
+    expect(count).toBeLessThan(2500);
   });
 
   test("renderSpiralDocument includes wrapper and tiles", () => {

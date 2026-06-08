@@ -7,12 +7,12 @@
 export const prerender = true;
 
 export async function load(ctx) {
-  const data = {
-    message: "About Luxel",
-    blurb: "Static about page for multi-route prototype.",
-  };
-  ctx.store.set("route:about:view", data, { tags: ["about"] });
-  return data;
+  ctx.store.set("route:about:message", { message: "About Luxel" }, { tags: ["about"] });
+  ctx.store.set(
+    "route:about:blurb",
+    { blurb: "Static about page for multi-route prototype." },
+    { tags: ["about"] },
+  );
 }
 </script>
 

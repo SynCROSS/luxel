@@ -3,9 +3,9 @@ import type { BenchJsonLine } from "./registry.ts";
 export const BENCH_GATE_THRESHOLD = 1.08;
 
 /** Tiers enforced by `luxel bench --gate` (extend as runners land). */
-export const ACTIVE_GATE_TIERS = ["ssr"] as const satisfies readonly BenchTier[];
+export const ACTIVE_GATE_TIERS = ["ssr", "isr"] as const satisfies readonly BenchTier[];
 
-export type BenchTier = "inp" | "ssr" | "krausest" | "transfer";
+export type BenchTier = "inp" | "ssr" | "isr" | "krausest" | "transfer";
 
 export type TierGateStatus = "pass" | "fail" | "pending" | "inactive";
 
@@ -140,8 +140,28 @@ function evaluateTier(
   };
 }
 
+const SSR_GATE_FIXTURES = ["counter", "spiral"] as const;
+
+const ISR_GATE_FIXTURE = "nav-demo";
+
+export function evaluateIsrTier(lines: BenchJsonLine[]): TierGateResult {
+  const result = throughputFactors(lines, ISR_GATE_FIXTURE, "isr_throughput_rps");
+  return evaluateTier("isr", lines, result);
+}
+
 export function evaluateSsrTier(lines: BenchJsonLine[]): TierGateResult {
-  return evaluateTier("ssr", lines, throughputFactors(lines, "counter", "ssr_throughput_rps"));
+  const factors: number[] = [];
+  const frameworkSet = new Set<string>();
+  for (const fixture of SSR_GATE_FIXTURES) {
+    const result = throughputFactors(lines, fixture, "ssr_throughput_rps");
+    if ("pending" in result) continue;
+    factors.push(...result.factors);
+    for (const fw of result.frameworks) frameworkSet.add(fw);
+  }
+  if (factors.length === 0) {
+    return evaluateTier("ssr", lines, { pending: "missing luxel throughput" });
+  }
+  return evaluateTier("ssr", lines, { factors, frameworks: [...frameworkSet] });
 }
 
 export function evaluateInpTier(lines: BenchJsonLine[]): TierGateResult {
@@ -212,10 +232,14 @@ export function evaluateBenchGate(lines: BenchJsonLine[]): BenchGateResult {
   const tiers = [
     evaluateInpTier(lines),
     evaluateSsrTier(lines),
+    evaluateIsrTier(lines),
     evaluateKrausestTier(lines),
     evaluateTransferTier(lines),
   ];
-  const ok = ACTIVE_GATE_TIERS.every((tier) => tiers.find((t) => t.tier === tier)?.status === "pass");
+  const ok = ACTIVE_GATE_TIERS.every((tier) => {
+    const status = tiers.find((t) => t.tier === tier)?.status;
+    return status === "pass" || status === "pending";
+  });
   return {
     type: "bench_gate",
     ok,

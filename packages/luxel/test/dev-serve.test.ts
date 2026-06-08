@@ -6,7 +6,7 @@ const repoRoot = join(import.meta.dir, "../../..");
 
 describe("devApp", () => {
   test("serves nav-demo index route", async () => {
-    const server = await devApp(repoRoot, "examples/nav-demo", 0);
+    const server = await devApp(repoRoot, "examples/nav-demo", { port: 0 });
     try {
       const res = await fetch(server.url);
       expect(res.status).toBe(200);

@@ -1,0 +1,1 @@
+import{a as e,f as a}from"../chunks/DlFdhP-i.js";import{i as n,n as r}from"../chunks/DtgZCYjD.js";n();var l=a('<h1>Hello Luxel</h1><section><button type="button" data-luxel-text="count">0</button></section>',1);function f(t){var o=l();r(),e(t,o)}export{f as component};

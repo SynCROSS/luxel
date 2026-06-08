@@ -1,0 +1,4 @@
+const c=new Map;async function r({event:e,resolve:o}){const n=e.url.pathname,s=Date.now(),t=c.get(n);if(t&&s-t.at<1e3)return new Response(t.body,{headers:{"content-type":"text/html; charset=utf-8","x-cache":"hit"}});const a=await(await o(e)).text();return c.set(n,{body:a,at:s}),new Response(a,{headers:{"content-type":"text/html; charset=utf-8","x-cache":"miss"}})}
+
+export { r as handle };
+//# sourceMappingURL=hooks.server-B551XSUD.js.map

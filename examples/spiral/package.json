@@ -1,0 +1,13 @@
+{
+  "name": "@luxel/example-spiral",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "luxel dev",
+    "build": "luxel build"
+  },
+  "dependencies": {
+    "@luxel/luxel": "workspace:*"
+  }
+}

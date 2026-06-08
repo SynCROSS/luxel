@@ -1,11 +1,12 @@
-export function codegenClientGlue(attachImportPath: string): string {
+export function codegenClientGlue(attachImportPath: string, handlerSymbols: string[]): string {
+  const ctxArgs = handlerSymbols.join(", ");
   return `
 import { attach } from "${attachImportPath}";
 
-export function setupBoundary(_ctx: { data: { message: string } }) {
+export function setupBoundary(_ctx: { data: Record<string, unknown> }) {
   return {
     attach(root: HTMLElement) {
-      attach(root, { count, increment });
+      attach(root, { ${ctxArgs} });
     },
   };
 }

@@ -1,0 +1,2 @@
+import { render } from "solid-js/web";
+render(() => (<><h1>Hello Luxel</h1><section><button type="button" data-luxel-text="count">0</button></section></>), document.getElementById("app")!);

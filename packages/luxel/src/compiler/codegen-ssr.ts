@@ -12,7 +12,24 @@ export type CodegenSsrOptions = {
   routeId: string;
   clientModule: string;
   shipClientRuntime?: boolean;
+  shipDataSidecar?: boolean;
+  shipHydrationSidecar?: boolean;
 };
+
+export function codegenSsrDocumentFromBody(
+  body: string,
+  resources: ResourceSnapshot,
+  options: CodegenSsrOptions,
+  bindings: readonly TemplateBinding[],
+  boundaryIds: readonly string[] = [],
+  headStyle = "",
+): string {
+  const paddedBody = body
+    .split("\n")
+    .map((line) => (line.length ? `      ${line}` : line))
+    .join("\n");
+  return wrapSsrShell(paddedBody, resources, options, bindings, boundaryIds, headStyle);
+}
 
 export function codegenSsrDocument(
   ir: RenderIr,
@@ -22,19 +39,46 @@ export function codegenSsrDocument(
   bindings: readonly TemplateBinding[],
 ): string {
   const body = renderDomOps(ir.domOps, templateData, 6);
-  const dataJson = serializeLuxelData(resources);
-  const hydrationJson = JSON.stringify({
-    routeId: options.routeId,
-    bindings,
-    boundaries: ir.boundaryIds.map((id) => ({
-      id,
-      directive: "load",
-      clientModule: options.clientModule,
-    })),
-  });
-  const styleBlock = ir.headStyle
-    ? `    <style>\n${indentCss(ir.headStyle, 6)}\n    </style>\n`
+  return wrapSsrShell(body, resources, options, bindings, ir.boundaryIds, ir.headStyle);
+}
+
+function wrapSsrShell(
+  body: string,
+  resources: ResourceSnapshot,
+  options: CodegenSsrOptions,
+  bindings: readonly TemplateBinding[],
+  boundaryIds: readonly string[],
+  headStyle: string,
+): string {
+  const styleBlock = headStyle
+    ? `    <style>\n${indentCss(headStyle, 6)}\n    </style>\n`
     : "";
+  const sidecarBlocks: string[] = [];
+  if (options.shipDataSidecar) {
+    sidecarBlocks.push(`
+    <script type="application/json" id="luxel-data">
+      ${serializeLuxelData(resources)}
+    </script>`);
+  }
+  if (options.shipHydrationSidecar) {
+    sidecarBlocks.push(`
+    <script type="application/json" id="luxel-hydration">
+      ${JSON.stringify({
+        routeId: options.routeId,
+        bindings,
+        boundaries: boundaryIds.map((id) => ({
+          id,
+          directive: "load",
+          clientModule: options.clientModule,
+        })),
+      })}
+    </script>`);
+  }
+  if (options.shipClientRuntime) {
+    sidecarBlocks.push(`
+    <script type="module" src="/assets/${ASSET_CLIENT}"></script>`);
+  }
+  const sidecarSection = sidecarBlocks.length ? `\n${sidecarBlocks.join("")}` : "";
 
   return `<!doctype html>
 <html lang="en">
@@ -45,15 +89,7 @@ ${styleBlock}  </head>
   <body>
     <main data-luxel-route="${options.routePath}">
 ${body}
-    </main>
-
-    <script type="application/json" id="luxel-data">
-      ${dataJson}
-    </script>
-    <script type="application/json" id="luxel-hydration">
-      ${hydrationJson}
-    </script>
-    ${options.shipClientRuntime ? `<script type="module" src="/assets/${ASSET_CLIENT}"></script>` : ""}
+    </main>${sidecarSection}
   </body>
 </html>`;
 }
@@ -67,6 +103,9 @@ function renderDomOps(ops: DomOp[], data: Record<string, unknown>, indent: numbe
       }
       if (op.kind === "boundaryEnd") {
         return `${pad}<!-- luxel:boundary-end id="${op.id}" -->`;
+      }
+      if (op.kind === "forLoop") {
+        return renderForLoop(op, data, indent);
       }
       if (op.kind === "text") {
         const value = resolveTemplateExpr(op.expr, data);
@@ -113,10 +152,30 @@ function buildElement(
         .map(([k, v]) => ` ${k}="${escapeHtml(v)}"`)
         .join("");
       innerParts.push(`<${child.tag}${attrStr}>${nested.innerHtml}</${child.tag}>`);
+      continue;
+    }
+    if (child.kind === "forLoop") {
+      innerParts.push(renderForLoop(child, data, childIndent).trim());
     }
   }
 
   return { attrs, innerHtml: innerParts.join("") };
+}
+
+function renderForLoop(
+  op: Extract<DomOp, { kind: "forLoop" }>,
+  data: Record<string, unknown>,
+  indent: number,
+): string {
+  const list = data[op.listId];
+  if (!Array.isArray(list)) return "";
+  const pad = " ".repeat(indent);
+  return list
+    .map((item) => {
+      const loopData = { ...data, [op.itemName]: item };
+      return renderDomOps(op.body, loopData, indent);
+    })
+    .join("\n");
 }
 
 function resolveTemplateExpr(expr: TemplateExpr, data: Record<string, unknown>): unknown {

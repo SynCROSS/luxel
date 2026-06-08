@@ -5,8 +5,6 @@ import { createListenFetchServer } from "../http/listen-fetch.ts";
 import { createAppFetch } from "../server/handler.ts";
 import { bundleClient } from "../build/client-bundle.ts";
 import { compileApp } from "../route/compile-app.ts";
-import { discoverRouteFiles } from "../routing/discover-routes.ts";
-import { DevGraph } from "./graph.ts";
 
 export type DevAppOptions = {
   port?: number;
@@ -20,16 +18,6 @@ export async function devApp(
 ) {
   const port = options.port ?? Number(process.env.PORT ?? "3000");
   const routesDir = join(repoRoot, appDir, "src/routes");
-  let slugs = (await discoverRouteFiles(routesDir)).map((r) => r.slug);
-
-  const graph = new DevGraph();
-  function registerGraph(routeSlugs: string[]) {
-    for (const slug of routeSlugs) {
-      graph.add(`route:${slug}`, [`sfc:${slug}`]);
-      graph.add(`sfc:${slug}`);
-    }
-  }
-  registerGraph(slugs);
 
   async function rebuild() {
     const app = await compileApp(repoRoot, appDir, {
@@ -47,10 +35,6 @@ export async function devApp(
   });
 
   watch(routesDir, async () => {
-    slugs = (await discoverRouteFiles(routesDir)).map((r) => r.slug);
-    for (const slug of slugs) {
-      graph.invalidate(`sfc:${slug}`);
-    }
     fetch = await rebuild();
   });
 

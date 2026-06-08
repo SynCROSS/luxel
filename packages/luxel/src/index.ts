@@ -12,8 +12,10 @@ export {
 export type { LuxelServerConfig } from "./config/compress.ts";
 export { loadLuxelConfig } from "./config/load.ts";
 export type { LuxelConfig } from "./config/load.ts";
-export { generateCounterManifest } from "./manifest/generate.ts";
 export { compileRoute } from "./compiler/compile-route.ts";
+export { analyzeScript } from "./compiler/analyze-script.ts";
+export { compileTemplateIr } from "./compiler/template-ir.ts";
+export { analyzeRouteSfc } from "./compiler/analyze-route-sfc.ts";
 export { compileCounterApp, compileNavDemoApp } from "./route/compile-app.ts";
 export { ResourceStore } from "./resource-store/store.ts";
 export {
@@ -29,6 +31,8 @@ export type { LoadContext } from "./resource-store/load-context.ts";
 export { createLoadContext } from "./resource-store/load-context.ts";
 export { revalidateTag } from "./resource-store/revalidate.ts";
 export { compileSemanticIr } from "./compiler/semantic-ir.ts";
+export type { HostContext } from "./host/host-runtime.ts";
+export { createHostContext, findRepoRoot } from "./host/host-runtime.ts";
 export { buildApp } from "./build/build-app.ts";
 export { loadAppFromDist } from "./deploy/load-app.ts";
 export type { LoadedDeployApp } from "./deploy/load-app.ts";

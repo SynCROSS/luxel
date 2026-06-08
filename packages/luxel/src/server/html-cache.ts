@@ -1,5 +1,7 @@
 export type HtmlCacheEntry = {
   html: string;
+  /** Pre-encoded document bytes for cache-hit responses. */
+  body?: Uint8Array;
   writtenAt: number;
   revalidateSeconds: number;
   tags: string[];

@@ -1,11 +1,7 @@
-import { existsSync } from "node:fs";
-import { join } from "node:path";
 import { createServer, type Server } from "node:http";
-import { loadAppFromDist } from "../deploy/load-app.ts";
-import { createAppServerFetch } from "../server/handler.ts";
+import { createLuxelFetchFromDist } from "../deploy/create-luxel-fetch.ts";
 import type { CompressOptions } from "../server/compress.ts";
 import { sendFetchToNodeResponse } from "./http-bridge.ts";
-import { resolveProductionCompressOptions } from "../config/compress.ts";
 
 export type ServeLuxelOptions = {
   distDir: string;
@@ -23,20 +19,7 @@ export type LuxelNodeServer = {
 };
 
 export async function serveLuxel(options: ServeLuxelOptions): Promise<LuxelNodeServer> {
-  const { app, clientBundle } = await loadAppFromDist(options.distDir);
-  const compress =
-    options.compress ??
-    (options.useProductionCompress !== false
-      ? resolveProductionCompressOptions()
-      : { enabled: false });
-
-  const staticRoot = join(options.distDir, "static");
-  const fetch = createAppServerFetch({
-    app,
-    clientBundle,
-    compress,
-    staticRoot: existsSync(staticRoot) ? staticRoot : undefined,
-  });
+  const fetch = await createLuxelFetchFromDist(options);
 
   const server: Server = createServer((req, res) => {
     void sendFetchToNodeResponse(fetch, req, res).catch((err) => {

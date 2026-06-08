@@ -1,0 +1,36 @@
+{
+  "name": "@luxel/bench-competitors",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:csr": "bun run build/react-csr.ts && bun run build/vue-vdom-csr.ts && bun run build/vue-vapor-csr.ts && bun run build/solid-csr.ts && bun run build/svelte-csr.ts",
+    "build:frameworks": "bun run build/react-rsc.ts && bun run build/sveltekit-ssr.ts && bun run build/solidstart-ssr.ts",
+    "build": "bun run build:csr && bun run build:frameworks",
+    "next": "next"
+  },
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "solid-js": "^1.9.7",
+    "svelte": "^5.33.0",
+    "vue": "^3.5.16",
+    "vue-vapor": "npm:vue@3.6.0-beta.14"
+  },
+  "devDependencies": {
+    "@solidjs/router": "^0.15.3",
+    "@solidjs/start": "^1.1.0",
+    "vinxi": "^0.5.11",
+    "@sveltejs/adapter-node": "^5.2.12",
+    "@sveltejs/kit": "^2.63.0",
+    "@sveltejs/vite-plugin-svelte": "^5.0.3",
+    "@types/node": "20.17.6",
+    "@types/react": "19.2.17",
+    "@vitejs/plugin-react": "^4.4.1",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "@vitejs/plugin-vue-vapor": "npm:@vitejs/plugin-vue@6.0.7",
+    "next": "^15.3.3",
+    "typescript": "^5.8.2",
+    "vite": "^6.3.5",
+    "vite-plugin-solid": "^2.11.6"
+  }
+}

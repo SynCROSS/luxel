@@ -1,4 +1,5 @@
 import { LuxelCompileError } from "./diagnostics.ts";
+import type { ParsedSfc } from "./parse-sfc.ts";
 import { parseSfc } from "./parse-sfc.ts";
 
 export type TemplateExpr = {
@@ -16,7 +17,10 @@ export type SemanticIr = {
 const EXPR_RE = /\{([^}]+)\}/g;
 
 export function compileSemanticIr(source: string): SemanticIr {
-  const sfc = parseSfc(source);
+  return compileSemanticIrFromSfc(parseSfc(source), source);
+}
+
+export function compileSemanticIrFromSfc(sfc: ParsedSfc, source: string): SemanticIr {
   const templateExprs: TemplateExpr[] = [];
   const eventHandlers: string[] = [];
 
@@ -30,6 +34,7 @@ export function compileSemanticIr(source: string): SemanticIr {
 
   for (const m of sfc.template.matchAll(EXPR_RE)) {
     const raw = m[1].trim();
+    if (raw.startsWith("#") || raw.startsWith("/")) continue;
     templateExprs.push(classifyExpr(raw));
   }
 

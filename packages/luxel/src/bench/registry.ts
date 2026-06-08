@@ -1,13 +1,23 @@
 import { runCounterBench } from "./counter.ts";
-import { runStaticHttpBaseline } from "./static-baseline.ts";
+import { runIsrBench } from "./isr.ts";
+import { runSpiralBench } from "./spiral.ts";
+import { runStaticHttpBaseline, runStaticHttpSpiralBaseline } from "./static-baseline.ts";
 import {
   runFastifyHtmlCounterBench,
+  runFastifyHtmlSpiralBench,
   runFastifyStaticCounterBench,
+  runFastifyStaticSpiralBench,
   runReactCounterBench,
+  runReactSpiralBench,
   runSolidCounterBench,
+  runSolidSpiralBench,
   runSvelteCounterBench,
+  runSvelteKitIsrBench,
+  runSvelteSpiralBench,
   runVueVdomCounterBench,
+  runVueVdomSpiralBench,
   runVueVaporCounterBench,
+  runVueVaporSpiralBench,
 } from "./competitors/runners.ts";
 import { createTestServerForApp } from "../test/server.ts";
 import { BENCH_ITERATIONS, runFetchThroughputBench } from "./competitors/throughput-harness.ts";
@@ -26,19 +36,36 @@ export type BenchJsonLine =
 export type BenchRegistryOptions = {
   /** Skip Playwright INP (faster unit tests). */
   skipInp?: boolean;
+  /** Skip Platformatic spiral tier-2 rows (slow; use dedicated spiral test). */
+  skipSpiral?: boolean;
 };
 
 async function yieldCompetitor(
+  fixture: string,
   framework: string,
   result: { throughputRps: number; htmlBytes: number } | null,
 ): Promise<BenchJsonLine[]> {
   if (result) {
     return [
-      { fixture: "counter", framework, metric: "ssr_throughput_rps", value: result.throughputRps },
-      { fixture: "counter", framework, metric: "ssr_html_bytes", value: result.htmlBytes },
+      { fixture, framework, metric: "ssr_throughput_rps", value: result.throughputRps },
+      { fixture, framework, metric: "ssr_html_bytes", value: result.htmlBytes },
     ];
   }
-  return [{ fixture: "counter", framework, metric: "runner", status: "pending" }];
+  return [{ fixture, framework, metric: "runner", status: "pending" }];
+}
+
+async function yieldIsrCompetitor(
+  fixture: string,
+  framework: string,
+  result: { throughputRps: number; htmlBytes: number } | null,
+): Promise<BenchJsonLine[]> {
+  if (result) {
+    return [
+      { fixture, framework, metric: "isr_throughput_rps", value: result.throughputRps },
+      { fixture, framework, metric: "isr_html_bytes", value: result.htmlBytes },
+    ];
+  }
+  return [{ fixture, framework, metric: "runner", status: "pending" }];
 }
 
 export async function* runBenchRegistry(
@@ -48,6 +75,10 @@ export async function* runBenchRegistry(
     options.skipInp === true ||
     process.env.LUXEL_BENCH_SKIP_INP === "1" ||
     process.env.LUXEL_BENCH_SKIP_INP === "true";
+  const skipSpiral =
+    options.skipSpiral === true ||
+    process.env.LUXEL_BENCH_SKIP_SPIRAL === "1" ||
+    process.env.LUXEL_BENCH_SKIP_SPIRAL === "true";
 
   const { throughputRps, clientBytes, htmlBytes } = await runCounterBench();
   yield { fixture: "counter", framework: "luxel", metric: "ssr_throughput_rps", value: throughputRps };
@@ -68,7 +99,7 @@ export async function* runBenchRegistry(
     value: baseline.htmlBytes,
   };
 
-  for (const line of await yieldCompetitor("fastify-html", await runFastifyHtmlCounterBench())) {
+  for (const line of await yieldCompetitor("counter", "fastify-html", await runFastifyHtmlCounterBench())) {
     yield line;
   }
 
@@ -86,37 +117,100 @@ export async function* runBenchRegistry(
     value: fastifyStatic.htmlBytes,
   };
 
-  for (const line of await yieldCompetitor("react", await runReactCounterBench())) {
+  for (const line of await yieldCompetitor("counter", "react", await runReactCounterBench())) {
     yield line;
   }
 
-  for (const line of await yieldCompetitor("vue-vdom", await runVueVdomCounterBench())) {
+  for (const line of await yieldCompetitor("counter", "vue-vdom", await runVueVdomCounterBench())) {
     yield line;
   }
 
-  yield {
-    fixture: "counter",
-    framework: "vue-vapor",
-    metric: "runner",
-    status: "pending",
-    reason: "needs Vue 3.6+ vapor SFC compile pipeline in bench harness",
-  };
-
-  for (const line of await yieldCompetitor("solid", await runSolidCounterBench())) {
+  for (const line of await yieldCompetitor("counter", "vue-vapor", await runVueVaporCounterBench())) {
     yield line;
   }
 
-  for (const line of await yieldCompetitor("svelte", await runSvelteCounterBench())) {
+  for (const line of await yieldCompetitor("counter", "solid", await runSolidCounterBench())) {
     yield line;
   }
 
-  yield {
-    fixture: "spiral",
-    framework: "luxel",
-    metric: "ssr_throughput_rps",
-    status: "pending",
-    reason: "Platformatic spiral workload — see docs/benchmarks/ssr-showdown.md",
-  };
+  for (const line of await yieldCompetitor("counter", "svelte", await runSvelteCounterBench())) {
+    yield line;
+  }
+
+  const isr = await runIsrBench();
+  yield { fixture: "nav-demo", framework: "luxel", metric: "isr_throughput_rps", value: isr.throughputRps };
+  yield { fixture: "nav-demo", framework: "luxel", metric: "isr_html_bytes", value: isr.htmlBytes };
+  for (const line of await yieldIsrCompetitor("nav-demo", "svelte", await runSvelteKitIsrBench())) {
+    yield line;
+  }
+
+  if (skipSpiral) {
+    yield {
+      fixture: "spiral",
+      framework: "luxel",
+      metric: "ssr_throughput_rps",
+      status: "pending",
+      reason: "LUXEL_BENCH_SKIP_SPIRAL=1",
+    };
+  } else {
+    const spiral = await runSpiralBench();
+    yield { fixture: "spiral", framework: "luxel", metric: "ssr_throughput_rps", value: spiral.throughputRps };
+    yield {
+      fixture: "spiral",
+      framework: "luxel",
+      metric: "render_worker_throughput_rps",
+      value: spiral.renderWorkerRps,
+    };
+    yield { fixture: "spiral", framework: "luxel", metric: "ssr_html_bytes", value: spiral.htmlBytes };
+    yield { fixture: "spiral", framework: "luxel", metric: "spiral_tile_count", value: spiral.tileCount };
+
+    const spiralStatic = await runStaticHttpSpiralBaseline();
+    yield {
+      fixture: "spiral",
+      framework: "static-http",
+      metric: "ssr_throughput_rps",
+      value: spiralStatic.throughputRps,
+    };
+    yield {
+      fixture: "spiral",
+      framework: "static-http",
+      metric: "ssr_html_bytes",
+      value: spiralStatic.htmlBytes,
+    };
+
+    for (const line of await yieldCompetitor("spiral", "fastify-html", await runFastifyHtmlSpiralBench())) {
+      yield line;
+    }
+
+    const fastifyStaticSpiral = await runFastifyStaticSpiralBench();
+    yield {
+      fixture: "spiral",
+      framework: "fastify-static",
+      metric: "ssr_throughput_rps",
+      value: fastifyStaticSpiral.throughputRps,
+    };
+    yield {
+      fixture: "spiral",
+      framework: "fastify-static",
+      metric: "ssr_html_bytes",
+      value: fastifyStaticSpiral.htmlBytes,
+    };
+    for (const line of await yieldCompetitor("spiral", "react", await runReactSpiralBench())) {
+      yield line;
+    }
+    for (const line of await yieldCompetitor("spiral", "vue-vdom", await runVueVdomSpiralBench())) {
+      yield line;
+    }
+    for (const line of await yieldCompetitor("spiral", "vue-vapor", await runVueVaporSpiralBench())) {
+      yield line;
+    }
+    for (const line of await yieldCompetitor("spiral", "solid", await runSolidSpiralBench())) {
+      yield line;
+    }
+    for (const line of await yieldCompetitor("spiral", "svelte", await runSvelteSpiralBench())) {
+      yield line;
+    }
+  }
 
   if (!skipInp) {
     try {

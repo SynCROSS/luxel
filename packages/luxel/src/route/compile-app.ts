@@ -6,6 +6,7 @@ import type { Manifest } from "../manifest/types.ts";
 import { getLuxelPkgSrc } from "../paths.ts";
 import type { BundleBackend } from "../host/backends/types.ts";
 import { pickBundleBackend } from "../build/pick-bundle-backend.ts";
+import { loadLuxelConfig } from "../config/load.ts";
 
 export type CompileAppOptions = {
   bundleBackend?: BundleBackend;
@@ -28,7 +29,9 @@ export async function compileApp(
 ): Promise<CompiledApp> {
   const bundleBackend = options?.bundleBackend ?? pickBundleBackend();
   const slug = appDir.replace(/^examples\//, "");
-  const routesDir = join(repoRoot, appDir, "src/routes");
+  const appRoot = join(repoRoot, appDir);
+  const luxelConfig = await loadLuxelConfig(appRoot);
+  const routesDir = join(appRoot, luxelConfig.routesDir);
   const genRoot = join(getLuxelPkgSrc(), ".generated", slug);
   const discovered = await discoverRouteFiles(routesDir);
 
@@ -44,6 +47,7 @@ export async function compileApp(
         slug: route.slug,
         genRoot,
         bundleBackend,
+        configClientHydration: luxelConfig.routes?.[route.path]?.client?.hydration,
       }),
     );
   }

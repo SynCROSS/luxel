@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { compileSemanticIr } from "../src/compiler/semantic-ir.ts";
 import { lowerToRenderIr } from "../src/compiler/render-ir.ts";
+import { compileTemplateIr } from "../src/compiler/template-ir.ts";
 import { LuxelCompileError } from "../src/compiler/diagnostics.ts";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -35,6 +36,16 @@ describe("Semantic IR", () => {
   test("rejects unsafe:html", () => {
     const source = `<template unsafe:html><p>x</p></template><script></script>`;
     expect(() => compileSemanticIr(source)).toThrow(LuxelCompileError);
+  });
+});
+
+describe("compileTemplateIr", () => {
+  test("single parse produces semantic and render IR", async () => {
+    const source = await readFile(fixture, "utf8");
+    const { semantic, renderIr, sfc } = compileTemplateIr(source);
+    expect(sfc.template.length).toBeGreaterThan(0);
+    expect(semantic.hasHydrateLoad).toBe(true);
+    expect(renderIr.boundaryIds.length).toBeGreaterThan(0);
   });
 });
 

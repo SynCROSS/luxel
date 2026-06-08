@@ -21,6 +21,8 @@ export type Manifest = {
     assets: { client: string; css?: string };
     serverFunctions?: Array<{ id: string; name: string }>;
     offline: "none" | "static" | "stale" | "custom";
+    client: { hydration: "auto" | "never" };
+    shipSidecars: { data: boolean; hydration: boolean; clientScript: boolean };
   }>;
   components: Array<{
     id: string;

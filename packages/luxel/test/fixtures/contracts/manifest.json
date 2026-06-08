@@ -27,6 +27,14 @@
       ],
       "assets": {
         "client": "assets/client.dev0.js"
+      },
+      "client": {
+        "hydration": "auto"
+      },
+      "shipSidecars": {
+        "data": true,
+        "hydration": true,
+        "clientScript": true
       }
     }
   ],

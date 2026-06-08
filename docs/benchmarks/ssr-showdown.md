@@ -4,7 +4,7 @@ Reference: [An SSR Performance Showdown](https://blog.platformatic.dev/ssr-perfo
 
 ## Workload
 
-- **Document:** large CPU-bound page — spiral of ~4.8k positioned `div` tiles (10×10px tiles, 5px step grid; see `spiral-html.ts`).
+- **Document:** large CPU-bound page — spiral of ~2.4k positioned `div` tiles (10×10px tiles, SynCROSS `cellSize = 10` step; see `spiral-html.ts`).
 - **Per request:** full SSR (or ISR miss / SSG miss / SW document miss) — no cached HTML string shortcut for framework competitors.
 - **Build:** production `luxel build` (Luxel); production Vite build for Vite-based competitors in the comparison run.
 - **HTTP:** shared listen harness (Fastify or Luxel `createAppFetch` + adapter); measure **requests per second** over sustained iterations.
@@ -28,8 +28,8 @@ Per cell: `factor = rps_fastest / rps_luxel`. **v1.0 exit:** geometric mean of a
 
 ## Implementation status
 
-- Counter micro bench: wired (needs fairness fix — no pre-baked HTML for React/Solid).
-- Spiral fixture: **pending** (`fixtures/micro/spiral` or equivalent).
+- Counter micro bench: wired.
+- Spiral fixture: wired — Luxel + React, Vue vdom/vapor, Solid, Svelte, fastify-html, static-http, fastify-static (`luxel bench` emits `ssr_throughput_rps` + `render_worker_throughput_rps` for Luxel).
 - ISR/SSG/SW throughput rows: **pending**.
 
-Run: `luxel bench` (extend registry as fixtures land).
+Run: `luxel bench` or WinRK (`WINRK_FIXTURE=spiral bun run --cwd packages/bench bench:winrk`).

@@ -10,6 +10,7 @@ export type LuxelConfig = {
   routesDir: string;
   outDir: string;
   server?: LuxelServerConfig;
+  routes?: Record<string, { client?: { hydration: "auto" | "never" } }>;
 };
 
 async function importConfigModule(configPath: string): Promise<Record<string, unknown>> {

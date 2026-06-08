@@ -1,0 +1,6 @@
+{
+  "name": "@luxel/bench-sveltekit-ssr",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0"
+}
