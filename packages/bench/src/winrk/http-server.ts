@@ -20,14 +20,17 @@ export async function createFetchServer(
   fetch: (req: Request) => Promise<Response>,
   port = 0,
   hostname = "127.0.0.1",
+  options: { forceNodeHttp?: boolean } = {},
 ): Promise<BenchServer> {
-  if (typeof Bun !== "undefined" && "serve" in Bun) {
+  const forceNodeHttp =
+    options.forceNodeHttp === true || process.env.BENCH_FORCE_NODE_HTTP === "1";
+  if (typeof Bun !== "undefined" && "serve" in Bun && !forceNodeHttp) {
     const server = Bun.serve({ hostname, port, fetch, idleTimeout: 120 });
     return {
       url: `http://${hostname}:${server.port}`,
       port: server.port!,
       close: async () => {
-        server.stop();
+        await server.stop(true);
       },
     };
   }
