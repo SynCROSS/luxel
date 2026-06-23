@@ -28,8 +28,17 @@ describe.serial("v1.1 native toolchain host (node)", () => {
     });
     expect(buildHost.status).toBe(0);
 
+    const counterDir = join(repoRoot, "examples/counter");
+    const buildCounter = spawnSync(nodeBin, [nodeEntry, "build"], {
+      cwd: counterDir,
+      encoding: "utf8",
+      timeout: 120_000,
+      env: { ...process.env, NODE_NO_WARNINGS: "1" },
+    });
+    expect(buildCounter.status).toBe(0);
+
     const result = spawnSync(nodeBin, [nodeEntry, "bench"], {
-      cwd: join(repoRoot, "examples/counter"),
+      cwd: counterDir,
       encoding: "utf8",
       timeout: 180_000,
       env: {
@@ -40,6 +49,9 @@ describe.serial("v1.1 native toolchain host (node)", () => {
       },
     });
     const out = `${result.stderr}${result.stdout}`;
+    if (result.status !== 0) {
+      throw new Error(`luxel-node bench failed (status ${result.status}):\n${out.slice(0, 8000)}`);
+    }
     expect(result.status).toBe(0);
     expect(out).toContain('"fixture":"counter"');
     expect(out).toContain('"type":"bench_gate"');
