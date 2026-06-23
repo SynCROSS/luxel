@@ -23,7 +23,7 @@ export type SpiralBenchResult = {
 export async function runSpiralBench(options: SpiralBenchOptions = {}): Promise<SpiralBenchResult> {
   const repoRoot = getLuxelRepoRoot();
   const appDir = await ensureSpiralFixture(repoRoot);
-  const ssrBackend = options.ssrBackend ?? "native";
+  const ssrBackend = options.ssrBackend ?? "ts";
   const app = await compileApp(repoRoot, appDir, {
     routeSsrBackends: { "/": ssrBackend },
   });
@@ -37,7 +37,12 @@ export async function runSpiralBench(options: SpiralBenchOptions = {}): Promise<
   }
   const renderWorkerRps = (WORKER_ITERATIONS / (performance.now() - workerStart)) * 1000;
 
-  const server = await createTestServerForApp(appDir);
+  const server = await createTestServerForApp(appDir, 0, {
+    benchMinimalHtml: true,
+    benchSlimFetch: true,
+    benchFullRender: false,
+    routeSsrBackends: { "/": ssrBackend },
+  });
   try {
     const { throughputRps } = await runFetchThroughputBench(server.url, BENCH_ITERATIONS);
     return {

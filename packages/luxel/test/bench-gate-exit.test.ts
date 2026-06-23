@@ -14,6 +14,7 @@ describe("luxel bench --gate exit", () => {
       const prevCwd = process.cwd();
       process.env.LUXEL_BENCH_SKIP_INP = "1";
       delete process.env.LUXEL_BENCH_SKIP_SPIRAL;
+      process.env.LUXEL_BENCH_GATE_SSR_FIXTURES = "counter";
       process.chdir(counterApp);
       try {
         const code = await runBenchCommand(["bench", "--gate"]);
@@ -24,6 +25,7 @@ describe("luxel bench --gate exit", () => {
         else process.env.LUXEL_BENCH_SKIP_INP = prevInp;
         if (prevSpiral === undefined) delete process.env.LUXEL_BENCH_SKIP_SPIRAL;
         else process.env.LUXEL_BENCH_SKIP_SPIRAL = prevSpiral;
+        delete process.env.LUXEL_BENCH_GATE_SSR_FIXTURES;
       }
     },
     600_000,

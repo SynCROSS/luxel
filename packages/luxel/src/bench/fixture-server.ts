@@ -13,6 +13,21 @@ export {
 
 export { buildApp } from "../build/build-app.ts";
 export { getLuxelRepoRoot } from "../paths.ts";
+export {
+  benchRenderWorkerCount,
+  benchRenderWorkerCountForFixture,
+  benchRenderWorkerCountForHardwareConcurrency,
+  COUNTER_RENDER_WORKER_CAP,
+  createBenchRenderWorkerPool,
+  type BenchRenderWorkerPool,
+  type BenchWorkerPoolFixture,
+} from "./competitors/render-worker-pool.ts";
+export {
+  createRoundRobinDispatcher,
+  rejectAllPending,
+  type WorkerDispatchSlot,
+  type WorkerPoolJob,
+} from "./competitors/worker-round-robin-dispatch.ts";
 export { runBenchRegistry, type BenchJsonLine } from "./registry.ts";
 export { spiralDocumentFromBody, spiralMinimalDocument, spiralTileCount } from "./fixtures/spiral-contract.ts";
 export { computeSpiralTiles, spiralBodyMarkup } from "./fixtures/spiral-html.ts";
@@ -39,6 +54,14 @@ export {
   renderVueVaporSpiralDocument,
 } from "./competitors/ssr-render.ts";
 export { competitorSource } from "./competitors/sources-path.ts";
+export { warmupBenchUrl, warmupBenchUrlBurst, warmIsrBenchUrl } from "./competitors/warmup.ts";
+export { benchFetch, waitForServerReady, isBenchConnectError } from "./competitors/bench-fetch.ts";
+export {
+  applyDefaultBenchRenderWorkerBackendEnv,
+  benchUsesNodeRenderWorkers,
+  resolveBenchRenderWorkerBackend,
+  type BenchRenderWorkerBackend,
+} from "./competitors/bench-render-worker-backend.ts";
 
 export type BenchFixtureId = "counter" | "nav-demo" | "spiral" | (string & {});
 

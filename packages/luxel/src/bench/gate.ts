@@ -140,7 +140,17 @@ function evaluateTier(
   };
 }
 
-const SSR_GATE_FIXTURES = ["counter", "spiral"] as const;
+const SSR_GATE_FIXTURES_DEFAULT = ["counter", "spiral"] as const;
+
+function resolveSsrGateFixtures(): readonly string[] {
+  const raw = process.env.LUXEL_BENCH_GATE_SSR_FIXTURES;
+  if (!raw) return SSR_GATE_FIXTURES_DEFAULT;
+  const fixtures = raw
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+  return fixtures.length > 0 ? fixtures : SSR_GATE_FIXTURES_DEFAULT;
+}
 
 const ISR_GATE_FIXTURE = "nav-demo";
 
@@ -152,7 +162,7 @@ export function evaluateIsrTier(lines: BenchJsonLine[]): TierGateResult {
 export function evaluateSsrTier(lines: BenchJsonLine[]): TierGateResult {
   const factors: number[] = [];
   const frameworkSet = new Set<string>();
-  for (const fixture of SSR_GATE_FIXTURES) {
+  for (const fixture of resolveSsrGateFixtures()) {
     const result = throughputFactors(lines, fixture, "ssr_throughput_rps");
     if ("pending" in result) continue;
     factors.push(...result.factors);

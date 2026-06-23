@@ -14,7 +14,7 @@ const prebuiltPath = join(pkgRoot, "dist/host/run.mjs");
 const hostEntry = join(pkgSrc, "host/node-entry.ts");
 const devBundlePath = join(pkgRoot, ".cache/node-host/run.mjs");
 const bundleStampPath = join(pkgRoot, ".cache/node-host/stamp.txt");
-const BUNDLE_STAMP = "external-pkgs-v6-native-cmds";
+const BUNDLE_STAMP = "external-pkgs-v7-react-banner";
 const HOST_SOURCE_PATHS = [
   hostEntry,
   join(pkgSrc, "host/native-host.ts"),
@@ -48,6 +48,9 @@ function ensureDevHostBundle() {
     logLevel: "silent",
     sourcemap: false,
     loader: { ".svelte": "empty" },
+    banner: {
+      js: 'import * as React from "react";',
+    },
   });
   if (result.errors.length > 0) {
     throw new Error(result.errors.map((e) => e.text).join("\n"));
