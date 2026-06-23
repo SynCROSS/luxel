@@ -28,10 +28,6 @@ export {
   type WorkerDispatchSlot,
   type WorkerPoolJob,
 } from "./competitors/worker-round-robin-dispatch.ts";
-export {
-  createCounterInlineRenderPool,
-  type CounterInlineFramework,
-} from "./competitors/counter-inline-render-pool.ts";
 export { runBenchRegistry, type BenchJsonLine } from "./registry.ts";
 export { spiralDocumentFromBody, spiralMinimalDocument, spiralTileCount } from "./fixtures/spiral-contract.ts";
 export { computeSpiralTiles, spiralBodyMarkup } from "./fixtures/spiral-html.ts";

@@ -1,6 +1,8 @@
-import { createCounterInlineRenderPool } from "@luxel/luxel/bench";
+import {
+  createCounterInlineRenderPool,
+  type CounterInlineFramework,
+} from "../../../../luxel/src/bench/competitors/counter-inline-render-pool.ts";
 import { createFetchServer, type BenchServer } from "../http-server.ts";
-import type { CounterInlineFramework } from "@luxel/luxel/bench";
 
 const HTML_HEADERS = { "content-type": "text/html; charset=utf-8" } as const;
 
