@@ -20,6 +20,14 @@ describe.serial("v1.1 native toolchain host (node)", () => {
   test(
     "native-host bench emits counter metrics",
     async () => {
+    const buildHost = spawnSync(nodeBin, [join(repoRoot, "packages/luxel/scripts/build-node-host.mjs")], {
+      cwd: join(repoRoot, "packages/luxel"),
+      encoding: "utf8",
+      timeout: 120_000,
+      env: { ...process.env, NODE_NO_WARNINGS: "1" },
+    });
+    expect(buildHost.status).toBe(0);
+
     const result = spawnSync(nodeBin, [nodeEntry, "bench"], {
       cwd: join(repoRoot, "examples/counter"),
       encoding: "utf8",
