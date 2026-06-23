@@ -22,6 +22,9 @@ const result = esbuild.buildSync({
   logLevel: "info",
   sourcemap: false,
   loader: { ".svelte": "empty" },
+  banner: {
+    js: 'import * as React from "react";',
+  },
 });
 
 if (result.errors.length > 0) {

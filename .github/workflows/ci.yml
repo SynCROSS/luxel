@@ -66,6 +66,7 @@ jobs:
       - name: luxel-node bench without Bun bridge
         run: |
           cd examples/counter
+          set -o pipefail
           LUXEL_BENCH_SKIP_INP=1 LUXEL_BENCH_SKIP_SPIRAL=1 node ../../packages/luxel/bin/luxel-node.mjs bench 2>&1 | tee /tmp/luxel-node-bench.log
           grep -q '"fixture":"counter"' /tmp/luxel-node-bench.log
           grep -qv luxel-host /tmp/luxel-node-bench.log
