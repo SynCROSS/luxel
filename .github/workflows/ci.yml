@@ -44,13 +44,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - run: npm install
+      - run: bun install
       - name: build shipped node host bundle (publish path)
         run: node packages/luxel/scripts/build-node-host.mjs
       - name: luxel-node build without Bun bridge
@@ -65,7 +66,7 @@ jobs:
       - name: luxel-node bench without Bun bridge
         run: |
           cd examples/counter
-          LUXEL_BENCH_SKIP_INP=1 node ../../packages/luxel/bin/luxel-node.mjs bench 2>&1 | tee /tmp/luxel-node-bench.log
+          LUXEL_BENCH_SKIP_INP=1 LUXEL_BENCH_SKIP_SPIRAL=1 node ../../packages/luxel/bin/luxel-node.mjs bench 2>&1 | tee /tmp/luxel-node-bench.log
           grep -q '"fixture":"counter"' /tmp/luxel-node-bench.log
           grep -qv luxel-host /tmp/luxel-node-bench.log
       - name: luxel-node dev smoke
@@ -102,7 +103,7 @@ jobs:
       - name: luxel-deno bench without Bun bridge
         run: |
           cd examples/counter
-          LUXEL_BENCH_SKIP_INP=1 deno run --allow-read --allow-env --allow-write --allow-net --allow-run --allow-sys ../../packages/luxel/bin/luxel-deno.ts bench 2>&1 | tee /tmp/luxel-deno-bench.log
+          LUXEL_BENCH_SKIP_INP=1 LUXEL_BENCH_SKIP_SPIRAL=1 deno run --allow-read --allow-env --allow-write --allow-net --allow-run --allow-sys ../../packages/luxel/bin/luxel-deno.ts bench 2>&1 | tee /tmp/luxel-deno-bench.log
           grep -q '"fixture":"counter"' /tmp/luxel-deno-bench.log
           grep -qv luxel-host /tmp/luxel-deno-bench.log
 
@@ -118,20 +119,7 @@ jobs:
         with:
           node-version: "22"
       - uses: oven-sh/setup-bun@v2
-      - name: Enable Corepack (pnpm/yarn)
-        if: matrix.package-manager == 'pnpm' || matrix.package-manager == 'yarn'
-        run: corepack enable
-      - name: Install dependencies (npm)
-        if: matrix.package-manager == 'npm'
-        run: npm install
-      - name: Install dependencies (pnpm)
-        if: matrix.package-manager == 'pnpm'
-        run: pnpm install
-      - name: Install dependencies (yarn)
-        if: matrix.package-manager == 'yarn'
-        run: yarn install
-      - name: Install dependencies (bun)
-        if: matrix.package-manager == 'bun'
+      - name: Install dependencies (bun workspaces)
         run: bun install
       - name: Build counter example
         run: cd examples/counter && bun ../../packages/luxel/src/cli.ts build

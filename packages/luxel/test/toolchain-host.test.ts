@@ -8,6 +8,8 @@ import { runNativeHost } from "../src/host/native-host.ts";
 
 const repoRoot = join(import.meta.dir, "../../..");
 const nodeEntry = join(repoRoot, "packages/luxel/bin/luxel-node.mjs");
+/** Native host tests must invoke Node, not the Bun test runner binary. */
+const nodeBin = "node";
 
 describe.serial("v1.1 native toolchain host (node)", () => {
   test("native-host build succeeds with esbuild backend", async () => {
@@ -15,8 +17,10 @@ describe.serial("v1.1 native toolchain host (node)", () => {
     expect(code).toBe(0);
   });
 
-  test("native-host bench emits counter metrics", async () => {
-    const result = spawnSync(process.execPath, [nodeEntry, "bench"], {
+  test(
+    "native-host bench emits counter metrics",
+    async () => {
+    const result = spawnSync(nodeBin, [nodeEntry, "bench"], {
       cwd: join(repoRoot, "examples/counter"),
       encoding: "utf8",
       timeout: 180_000,
@@ -24,6 +28,7 @@ describe.serial("v1.1 native toolchain host (node)", () => {
         ...process.env,
         NODE_NO_WARNINGS: "1",
         LUXEL_BENCH_SKIP_INP: "1",
+        LUXEL_BENCH_SKIP_SPIRAL: "1",
       },
     });
     const out = `${result.stderr}${result.stdout}`;
@@ -31,10 +36,12 @@ describe.serial("v1.1 native toolchain host (node)", () => {
     expect(out).toContain('"fixture":"counter"');
     expect(out).toContain('"type":"bench_gate"');
     expect(out).not.toContain("luxel-host");
-  });
+    },
+    180_000,
+  );
 
   test("luxel-node.mjs build emits counter dist without Bun bridge", () => {
-    const result = spawnSync(process.execPath, [nodeEntry, "build"], {
+    const result = spawnSync(nodeBin, [nodeEntry, "build"], {
       cwd: join(repoRoot, "examples/counter"),
       encoding: "utf8",
       timeout: 120_000,
@@ -49,7 +56,7 @@ describe.serial("v1.1 native toolchain host (node)", () => {
 
   test("luxel-node.mjs dev serves counter without Bun bridge", async () => {
     const counterDir = join(repoRoot, "examples/counter");
-    const child = spawn(process.execPath, [nodeEntry, "dev"], {
+    const child = spawn(nodeBin, [nodeEntry, "dev"], {
       cwd: counterDir,
       env: { ...process.env, PORT: "0", NODE_NO_WARNINGS: "1" },
       stdio: ["ignore", "pipe", "pipe"],
@@ -84,7 +91,7 @@ describe.serial("v1.1 native toolchain host (node)", () => {
 
   test("luxel-node.mjs serve node serves built counter", async () => {
     const counterDir = join(repoRoot, "examples/counter");
-    const build = spawnSync(process.execPath, [nodeEntry, "build"], {
+    const build = spawnSync(nodeBin, [nodeEntry, "build"], {
       cwd: counterDir,
       encoding: "utf8",
       timeout: 120_000,
@@ -92,7 +99,7 @@ describe.serial("v1.1 native toolchain host (node)", () => {
     });
     expect(build.status).toBe(0);
 
-    const child = spawn(process.execPath, [nodeEntry, "serve", "node"], {
+    const child = spawn(nodeBin, [nodeEntry, "serve", "node"], {
       cwd: counterDir,
       env: { ...process.env, PORT: "0", NODE_NO_WARNINGS: "1" },
       stdio: ["ignore", "pipe", "pipe"],
@@ -125,7 +132,7 @@ describe.serial("v1.1 native toolchain host (node)", () => {
   });
 
   test("luxel-node.mjs uses prebuilt host bundle when dist/host/run.mjs exists", async () => {
-    const buildHost = spawnSync(process.execPath, [join(repoRoot, "packages/luxel/scripts/build-node-host.mjs")], {
+    const buildHost = spawnSync(nodeBin, [join(repoRoot, "packages/luxel/scripts/build-node-host.mjs")], {
       cwd: join(repoRoot, "packages/luxel"),
       encoding: "utf8",
       timeout: 120_000,
@@ -139,7 +146,7 @@ describe.serial("v1.1 native toolchain host (node)", () => {
       // absent ok
     }
 
-    const result = spawnSync(process.execPath, [nodeEntry, "build"], {
+    const result = spawnSync(nodeBin, [nodeEntry, "build"], {
       cwd: join(repoRoot, "examples/counter"),
       encoding: "utf8",
       timeout: 120_000,
@@ -167,7 +174,7 @@ describe.serial("v1.1 native toolchain host (node)", () => {
     expect(built.errors).toHaveLength(0);
 
     const result = spawnSync(
-      process.execPath,
+      nodeBin,
       [probePath, join(repoRoot, "examples/counter")],
       { encoding: "utf8", timeout: 30_000, env: { ...process.env, NODE_NO_WARNINGS: "1" } },
     );

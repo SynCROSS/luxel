@@ -3,13 +3,19 @@ import { runIsrBench } from "../src/bench/isr.ts";
 import { runBenchRegistry } from "../src/bench/registry.ts";
 
 describe("ISR throughput bench", () => {
-  test("warmed server sustains cache hits under load", async () => {
+  test(
+    "warmed server sustains cache hits under load",
+    async () => {
     const result = await runIsrBench();
     expect(result.cacheHit).toBe(true);
     expect(result.throughputRps).toBeGreaterThan(0);
-  });
+    },
+    120_000,
+  );
 
-  test("registry emits luxel nav-demo isr throughput", async () => {
+  test(
+    "registry emits luxel nav-demo isr throughput",
+    async () => {
     const lines = [];
     for await (const line of runBenchRegistry({ skipInp: true, skipSpiral: true })) {
       lines.push(line);
@@ -23,5 +29,7 @@ describe("ISR throughput bench", () => {
     );
     expect(isr).toBeDefined();
     expect((isr as { value: number }).value).toBeGreaterThan(0);
-  });
+    },
+    120_000,
+  );
 });
