@@ -1,12 +1,11 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { ASSET_CLIENT, codegenSsrDocument, type CodegenSsrOptions } from "./codegen-ssr.ts";
+import { ASSET_CLIENT, codegenSsrDocument, codegenSsrDocumentFromBody, type CodegenSsrOptions } from "./codegen-ssr.ts";
 import { codegenAttachModule } from "./codegen-attach.ts";
 import { codegenClientGlue } from "./codegen-client-glue.ts";
 import { streamHtmlDocument } from "./stream-document.ts";
 import type { TemplateBinding } from "../resource-store/luxel-data.ts";
-import type { ResourceStore } from "../resource-store/store.ts";
 import { projectSnapshotToTemplateData } from "../resource-store/project-bindings.ts";
 import { ResourceStore } from "../resource-store/store.ts";
 import { createLoadContext } from "../resource-store/load-context.ts";
@@ -29,8 +28,9 @@ import {
   codegenPrecomputedWithFallbackModule,
   codegenServerModuleSrc,
 } from "./codegen-route-runtime.ts";
-import { assertSpiralNativeEligible } from "./spiral-native.ts";
+import { assertNativeSsrEligible, nativeSsrRouteKind, type NativeSsrRouteKind } from "./spiral-native.ts";
 import { renderSpiralRouteDocumentFromStore } from "../luxel-core/spiral-native.ts";
+import { renderCounterBodyFromStore } from "../luxel-core/counter-native.ts";
 
 export type CompileRouteOptions = {
   routeId: string;
@@ -78,8 +78,9 @@ export async function compileRoute(sfcPath: string, options: CompileRouteOptions
   });
   const { renderIr, sfc, bindings, mode, offline, script } = analysis;
   const ssrBackend = options.ssrBackend ?? "ts";
+  const nativeKind = ssrBackend === "native" ? nativeSsrRouteKind(renderIr) : null;
   if (ssrBackend === "native") {
-    assertSpiralNativeEligible(renderIr);
+    assertNativeSsrEligible(renderIr);
   }
 
   const codegenOpts: CodegenSsrOptions = {
@@ -193,11 +194,18 @@ export async function compileRoute(sfcPath: string, options: CompileRouteOptions
   compiled.prefetch = routeFns.prefetch;
   compiled.serverFunctions = serverFunctions;
   compiled.callServerFn = routeFns.callServerFn;
-  compiled.renderFromStore = wrapRenderFromStore(routeFns.renderFromStore, ssrBackend);
+  compiled.renderFromStore = wrapRenderFromStore(
+    routeFns.renderFromStore,
+    ssrBackend,
+    nativeKind,
+    renderIr,
+    codegenOpts,
+    bindings,
+  );
   compiled.renderStreamFromStore = (store) =>
     streamHtmlDocument(compiled.renderFromStore(store));
 
-  if (script.staticLoadEligible) {
+  if (script.staticLoadEligible && ssrBackend !== "native") {
     const warmStore = new ResourceStore();
     const warmCtx = createLoadContext(warmStore, null);
     if (routeFns.prefetch) await routeFns.prefetch(warmCtx);
@@ -238,7 +246,14 @@ export async function compileRoute(sfcPath: string, options: CompileRouteOptions
     compiled.load = refreshed.load;
     compiled.prefetch = refreshed.prefetch;
     compiled.callServerFn = refreshed.callServerFn;
-    compiled.renderFromStore = wrapRenderFromStore(refreshed.renderFromStore, ssrBackend);
+    compiled.renderFromStore = wrapRenderFromStore(
+      refreshed.renderFromStore,
+      ssrBackend,
+      nativeKind,
+      renderIr,
+      codegenOpts,
+      bindings,
+    );
     compiled.renderStreamFromStore = (store) =>
       streamHtmlDocument(compiled.renderFromStore(store));
   }
@@ -249,14 +264,33 @@ export async function compileRoute(sfcPath: string, options: CompileRouteOptions
 function wrapRenderFromStore(
   tsRender: (store: ResourceStore) => string,
   ssrBackend: "ts" | "native",
+  nativeKind: NativeSsrRouteKind | null,
+  renderIr: RenderIr,
+  codegenOpts: CodegenSsrOptions,
+  bindings: TemplateBinding[],
 ): (store: ResourceStore) => string {
-  if (ssrBackend !== "native") {
+  if (ssrBackend !== "native" || !nativeKind) {
     return tsRender;
   }
   return (store) => {
     try {
-      return renderSpiralRouteDocumentFromStore(store);
-    } catch {
+      if (nativeKind === "spiral") {
+        return renderSpiralRouteDocumentFromStore(store);
+      }
+      const body = renderCounterBodyFromStore(store, renderIr, bindings);
+      return codegenSsrDocumentFromBody(
+        body,
+        store.snapshot(),
+        codegenOpts,
+        bindings,
+        renderIr.boundaryIds,
+        renderIr.headStyle,
+      );
+    } catch (err) {
+      if (process.env.LUXEL_BENCH_STRICT_NATIVE === "1") {
+        const msg = err instanceof Error ? err.message : String(err);
+        throw new Error(`luxel-core native SSR required in bench but failed: ${msg}`);
+      }
       return tsRender(store);
     }
   };
