@@ -22,9 +22,43 @@ export function isLuxelDataV2(value: unknown): value is LuxelDataV2 {
   );
 }
 
+/** Escape JSON embedded in `<script type="application/json">` raw text. */
+export function serializeJsonForScriptEmbed(value: unknown): string {
+  return JSON.stringify(value).replace(/[<>&\u2028\u2029]/g, (ch) => {
+    switch (ch) {
+      case "<":
+        return "\\u003C";
+      case ">":
+        return "\\u003E";
+      case "&":
+        return "\\u0026";
+      case "\u2028":
+        return "\\u2028";
+      case "\u2029":
+        return "\\u2029";
+      default:
+        return ch;
+    }
+  });
+}
+
 export function serializeLuxelData(snapshot: ResourceSnapshot): string {
   const payload: LuxelDataV2 = { version: LUXEL_DATA_VERSION, resources: snapshot };
-  return JSON.stringify(payload);
+  return serializeJsonForScriptEmbed(payload);
+}
+
+export type LuxelHydrationPayload = {
+  routeId: string;
+  bindings: readonly TemplateBinding[];
+  boundaries: readonly {
+    id: string;
+    directive: string;
+    clientModule: string;
+  }[];
+};
+
+export function serializeLuxelHydration(payload: LuxelHydrationPayload): string {
+  return serializeJsonForScriptEmbed(payload);
 }
 
 export function projectFromSnapshot(
