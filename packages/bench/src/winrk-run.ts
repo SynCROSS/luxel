@@ -1,128 +1,104 @@
-import { writeFile, mkdir } from "node:fs/promises";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import "./winrk/apply-bench-host-env.ts";
+import "@luxel/luxel/bench";
+import { cleanupOrphanBenchProcesses } from "./winrk/bench-cleanup-orphans.ts";
 import {
   runAllWinrkStacks,
   stacksForFixture,
   type WinrkBenchResult,
   type WinrkFixtureId,
 } from "./winrk/registry.ts";
-import { resolveWinrk } from "./winrk/resolve.ts";
-
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../..");
+import { filterStacks } from "./winrk/stack-filter.ts";
+import { runStacksIsolated } from "./winrk/isolated-run.ts";
+import { buildRunMeta, writeFixtureRun, appendStackObservabilityLine, stackObservabilityFromResult } from "./winrk/run-output.ts";
+import {
+  evaluateWinrkReproGate,
+  formatWinrkReproGateFailures,
+} from "./winrk/repro-gate.ts";
 
 function parseFixture(raw: string | undefined): WinrkFixtureId {
   const norm = raw?.trim().replace(/^["']|["']$/g, "").toLowerCase();
   if (norm === "spiral") return "spiral";
-  if (norm && norm !== "counter") {
+  if (norm === "all") {
     console.error(
-      `unknown WINRK_FIXTURE=${JSON.stringify(raw)} — falling back to counter (valid: counter, spiral)`,
+      "WINRK_FIXTURE=all removed — run counter + spiral in separate Bun processes (fresh memory per fixture).",
+    );
+    console.error("  bun run bench:repro");
+    console.error("  bun run bench:winrk:repro-all");
+    process.exit(1);
+  }
+  if (norm && norm !== "counter" && norm !== "") {
+    console.error(
+      `unknown WINRK_FIXTURE=${JSON.stringify(raw)} — defaulting to counter (valid: counter, spiral)`,
     );
   }
   return "counter";
 }
 
-function toMarkdown(
-  results: WinrkBenchResult[],
-  meta: Record<string, unknown> & { fixture: string },
-): string {
-  const lines = [
-    "# WinRK benchmark results",
-    "",
-    `Generated: ${meta.generatedAt}`,
-    `Tool: ${meta.winrkPath}`,
-    `Duration: ${meta.durationSec}s | Connections: ${meta.connections} | Threads: ${meta.threads}`,
-    `Fixture: ${meta.fixture} (see docs/benchmarks/fairness.md)`,
-    "",
-    "| Stack | Framework | Mode | RPS | Latency avg | Status |",
-    "|-------|-----------|------|-----|-------------|--------|",
-  ];
-  for (const row of results) {
-    if (row.status === "ok") {
-      lines.push(
-        `| ${row.id} | ${row.framework} | ${row.mode} | ${row.requestsPerSec.toFixed(2)} | ${row.latencyAvgMs?.toFixed(2) ?? "—"} ms | ok |`,
-      );
-    } else {
-      lines.push(`| ${row.id} | ${row.framework} | ${row.mode} | — | — | ${row.status}: ${row.reason} |`);
-    }
-  }
-  lines.push(
-    "",
-    "## Notes",
-    "",
-    "- Deployed HTTP servers; measured with [winrk](https://github.com/fomalhaut88/winrk) on Windows.",
-    "- CSR rows serve production-built static `index.html` + client bundle.",
-    "- SSR/RSC/ISR rows render per request (Luxel ISR uses html cache with 1s TTL).",
-    "- Spiral rows = tier-2 Platformatic workload (~2.4k tiles); see docs/benchmarks/ssr-showdown.md.",
-    "",
-  );
-  return lines.join("\n");
-}
-
-function outputBasename(fixture: WinrkFixtureId): string {
-  return fixture === "counter" ? "winrk-latest" : `winrk-${fixture}-latest`;
-}
-
-async function writeFixtureRun(
-  fixture: WinrkFixtureId,
-  results: WinrkBenchResult[],
-  meta: {
-    generatedAt: string;
-    winrkPath: string;
-    durationSec: number;
-    connections: number;
-    threads: number;
-  },
-): Promise<void> {
-  const outDir = join(repoRoot, "docs/benchmarks/runs");
-  await mkdir(outDir, { recursive: true });
-  const base = outputBasename(fixture);
-  const payload = {
-    type: "winrk_bench",
-    generatedAt: meta.generatedAt,
-    host: "win32",
-    tool: { name: "winrk", path: meta.winrkPath },
-    params: {
-      durationSec: meta.durationSec,
-      connections: meta.connections,
-      threads: meta.threads,
-    },
-    fixture,
-    results,
-  };
-  await writeFile(join(outDir, `${base}.json`), `${JSON.stringify(payload, null, 2)}\n`);
-  await writeFile(
-    join(outDir, `${base}.md`),
-    toMarkdown(results, { ...meta, fixture }),
-  );
-  await writeFile(
-    join(outDir, `${base}.jsonl`),
-    `${results.map((r) => JSON.stringify(r)).join("\n")}\n`,
-  );
-  console.error(`wrote docs/benchmarks/runs/${base}.{json,md,jsonl}`);
-}
-
 async function main() {
-  const winrkPath = resolveWinrk();
-  const durationSec = Number(process.env.WINRK_DURATION ?? "15");
-  const connections = Number(process.env.WINRK_CONNECTIONS ?? "400");
-  const threads = Number(process.env.WINRK_THREADS ?? "8");
-  const fixture = parseFixture(process.env.WINRK_FIXTURE);
+  const killed = cleanupOrphanBenchProcesses();
+  if (killed > 0) console.error(`cleaned ${killed} orphan bench process(es)`);
+
+  const fixtureArg = parseFixture(process.env.WINRK_FIXTURE);
   const generatedAt = new Date().toISOString();
-  const meta = { generatedAt, winrkPath, durationSec, connections, threads };
+  const meta = buildRunMeta(generatedAt);
 
-  console.error(`winrk: ${winrkPath}`);
-  console.error(`fixture: ${fixture}`);
-  console.error(`running ${durationSec}s @ ${connections} conn, ${threads} threads`);
+  console.error(`load tester: ${meta.loadTester} (${meta.loadTesterPath})`);
+  console.error(`fixture: ${fixtureArg}`);
+  if (process.env.BENCH_RENDER_WORKER_BACKEND) {
+    console.error(`render worker backend: ${process.env.BENCH_RENDER_WORKER_BACKEND}`);
+  }
+  console.error(
+    `running ${meta.durationSec}s @ ${meta.connections} conn, ${meta.threads} threads`,
+  );
 
-  const results = await runAllWinrkStacks(stacksForFixture(fixture));
+  const fixture = fixtureArg;
+  const stacks = filterStacks(stacksForFixture(fixture));
+  if (process.env.WINRK_STACK || process.env.WINRK_STACK_UNTIL) {
+    console.error(
+      `stack filter: ${stacks.length} of ${stacksForFixture(fixture).length} (${stacks.map((r) => r.id).join(", ")})`,
+    );
+  }
+
+  const isolate =
+    process.env.BENCH_ISOLATE_STACKS === "1" || process.env.BENCH_ISOLATE_STACKS === "true";
+
+  console.error(`\n=== fixture: ${fixture} ===`);
+  const onProgress = async (partial: WinrkBenchResult[]) => {
+    await writeFixtureRun(fixture, partial, meta);
+    const latest = partial.at(-1);
+    if (latest) {
+      await appendStackObservabilityLine(
+        fixture,
+        stackObservabilityFromResult(latest, meta.generatedAt),
+      );
+    }
+  };
+
+  const results: WinrkBenchResult[] = isolate
+    ? await runStacksIsolated(fixture, stacks, { onProgress })
+    : await runAllWinrkStacks(stacks, { onProgress });
+
   await writeFixtureRun(fixture, results, meta);
   for (const row of results) {
-    console.log(JSON.stringify(row));
+    console.log(JSON.stringify({ fixture, ...row }));
+  }
+
+  const gate =
+    process.env.BENCH_REPRO_GATE === "1" ? evaluateWinrkReproGate(fixture, results) : { ok: true, failures: [] };
+  if (!gate.ok) {
+    console.error(`repro gate failed (${fixture}):\n${formatWinrkReproGateFailures(gate.failures)}`);
+    process.exit(1);
   }
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+main()
+  .then(() => {
+    const killed = cleanupOrphanBenchProcesses();
+    if (killed > 0) console.error(`post-run cleanup: ${killed} orphan bench process(es)`);
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error(err);
+    cleanupOrphanBenchProcesses();
+    process.exit(1);
+  });
