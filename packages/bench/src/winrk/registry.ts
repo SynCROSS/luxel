@@ -88,7 +88,7 @@ import {
 } from "./servers/luxel-spiral-pooled.ts";
 
 import { optimizationsForStack } from "./optimizations.ts";
-import { formatWinrkStackProgress } from "./stack-progress.ts";
+import { logWinrkStackProgress, logWinrkStackRunning } from "./stack-progress.ts";
 
 export type StackRole = "baseline" | "framework";
 
@@ -453,10 +453,10 @@ export async function runAllWinrkStacks(
   const results: WinrkBenchResult[] = [];
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]!;
-    console.error(`[${i + 1}/${rows.length}] stack: ${row.id}`);
+    logWinrkStackRunning(i, rows.length, row.id);
     const result = await runWinrkStack(row);
     results.push(result);
-    console.error(formatWinrkStackProgress(i, rows.length, result));
+    logWinrkStackProgress(i, rows.length, result);
     await opts?.onProgress?.(results);
   }
   return results;

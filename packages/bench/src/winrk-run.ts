@@ -5,40 +5,27 @@ import {
   runAllWinrkStacks,
   stacksForFixture,
   type WinrkBenchResult,
-  type WinrkFixtureId,
 } from "./winrk/registry.ts";
 import { filterStacks } from "./winrk/stack-filter.ts";
 import { runStacksIsolated } from "./winrk/isolated-run.ts";
-import { buildRunMeta, writeFixtureRun, appendStackObservabilityLine, stackObservabilityFromResult } from "./winrk/run-output.ts";
+import { buildRunMeta, writeFixtureRun, resetStackObservabilityDir, writeStackObservabilityLine, stackObservabilityFromResult } from "./winrk/run-output.ts";
 import {
   evaluateWinrkReproGate,
   formatWinrkReproGateFailures,
 } from "./winrk/repro-gate.ts";
-
-function parseFixture(raw: string | undefined): WinrkFixtureId {
-  const norm = raw?.trim().replace(/^["']|["']$/g, "").toLowerCase();
-  if (norm === "spiral") return "spiral";
-  if (norm === "all") {
-    console.error(
-      "WINRK_FIXTURE=all removed — run counter + spiral in separate Bun processes (fresh memory per fixture).",
-    );
-    console.error("  bun run bench:repro");
-    console.error("  bun run bench:winrk:repro-all");
-    process.exit(1);
-  }
-  if (norm && norm !== "counter" && norm !== "") {
-    console.error(
-      `unknown WINRK_FIXTURE=${JSON.stringify(raw)} — defaulting to counter (valid: counter, spiral)`,
-    );
-  }
-  return "counter";
-}
+import { resolveWinrkFixture } from "./winrk/resolve-winrk-fixture.ts";
 
 async function main() {
   const killed = cleanupOrphanBenchProcesses();
   if (killed > 0) console.error(`cleaned ${killed} orphan bench process(es)`);
 
-  const fixtureArg = parseFixture(process.env.WINRK_FIXTURE);
+  const resolved = resolveWinrkFixture(process.env);
+  if ("fatal" in resolved) {
+    console.error(resolved.fatal);
+    process.exit(1);
+  }
+  if (resolved.notice) console.error(resolved.notice);
+  const fixtureArg = resolved.fixture;
   const generatedAt = new Date().toISOString();
   const meta = buildRunMeta(generatedAt);
 
@@ -63,11 +50,12 @@ async function main() {
     process.env.BENCH_ISOLATE_STACKS === "1" || process.env.BENCH_ISOLATE_STACKS === "true";
 
   console.error(`\n=== fixture: ${fixture} ===`);
+  await resetStackObservabilityDir(fixture);
   const onProgress = async (partial: WinrkBenchResult[]) => {
     await writeFixtureRun(fixture, partial, meta, { announce: false });
     const latest = partial.at(-1);
     if (latest) {
-      await appendStackObservabilityLine(
+      await writeStackObservabilityLine(
         fixture,
         stackObservabilityFromResult(latest, meta.generatedAt),
       );

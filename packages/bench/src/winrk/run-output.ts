@@ -1,4 +1,4 @@
-import { writeFile, mkdir, appendFile } from "node:fs/promises";
+import { writeFile, mkdir, rm } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { WinrkBenchResult, WinrkFixtureId } from "./registry.ts";
@@ -6,7 +6,11 @@ import { benchLatencySampleCount } from "./bench-latency-config.ts";
 import { resolveBenchLoadTesterMeta, type BenchLoadTester } from "./load-test.ts";
 import { winrkDefaultThreads } from "./hardware-concurrency.ts";
 
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
+const defaultRepoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
+
+function repoRootDir(): string {
+  return process.env.LUXEL_WINRK_REPO_ROOT ?? defaultRepoRoot;
+}
 
 export type RunMeta = {
   generatedAt: string;
@@ -121,13 +125,19 @@ export function stackObservabilityFromResult(
   };
 }
 
-export async function appendStackObservabilityLine(
+export async function resetStackObservabilityDir(fixture: WinrkFixtureId): Promise<void> {
+  const outDir = join(repoRootDir(), "docs/benchmarks/runs/stacks", fixture);
+  await rm(outDir, { recursive: true, force: true });
+  await mkdir(outDir, { recursive: true });
+}
+
+export async function writeStackObservabilityLine(
   fixture: WinrkFixtureId,
   line: StackObservabilityLine,
 ): Promise<void> {
-  const outDir = join(repoRoot, "docs/benchmarks/runs/stacks", fixture);
+  const outDir = join(repoRootDir(), "docs/benchmarks/runs/stacks", fixture);
   await mkdir(outDir, { recursive: true });
-  await appendFile(join(outDir, `${line.stackId}.jsonl`), `${JSON.stringify(line)}\n`);
+  await writeFile(join(outDir, `${line.stackId}.jsonl`), `${JSON.stringify(line)}\n`);
 }
 
 export async function writeFixtureRun(
@@ -136,7 +146,7 @@ export async function writeFixtureRun(
   meta: RunMeta,
   opts?: { announce?: boolean },
 ): Promise<void> {
-  const outDir = join(repoRoot, "docs/benchmarks/runs");
+  const outDir = join(repoRootDir(), "docs/benchmarks/runs");
   await mkdir(outDir, { recursive: true });
   const base = outputBasename(fixture);
   const payload = {

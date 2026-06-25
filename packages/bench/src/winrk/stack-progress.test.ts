@@ -1,8 +1,17 @@
 import { describe, expect, test } from "bun:test";
-import { formatWinrkStackProgress } from "./stack-progress.ts";
+import {
+  formatWinrkStackProgress,
+  formatWinrkStackRunning,
+} from "./stack-progress.ts";
 import type { WinrkBenchResult } from "./registry.ts";
 
 describe("formatWinrkStackProgress", () => {
+  test("formats running line", () => {
+    expect(formatWinrkStackRunning(0, 3, "react-fastify-ssr")).toBe(
+      "[1/3] react-fastify-ssr: running…",
+    );
+  });
+
   test("formats ok row with rps and p50", () => {
     const row = {
       id: "react-fastify-ssr",
