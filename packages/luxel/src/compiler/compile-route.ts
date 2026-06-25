@@ -29,8 +29,7 @@ import {
   codegenServerModuleSrc,
 } from "./codegen-route-runtime.ts";
 import { assertNativeSsrEligible, nativeSsrRouteKind, type NativeSsrRouteKind } from "./spiral-native.ts";
-import { renderSpiralRouteDocumentFromStore } from "../luxel-core/spiral-native.ts";
-import { renderCounterBodyFromStore } from "../luxel-core/counter-native.ts";
+import { renderBodyFromStore } from "../luxel-core/render-ir-native.ts";
 
 export type CompileRouteOptions = {
   routeId: string;
@@ -274,10 +273,7 @@ function wrapRenderFromStore(
   }
   return (store) => {
     try {
-      if (nativeKind === "spiral") {
-        return renderSpiralRouteDocumentFromStore(store);
-      }
-      const body = renderCounterBodyFromStore(store, renderIr, bindings);
+      const body = renderBodyFromStore(store, renderIr, bindings);
       return codegenSsrDocumentFromBody(
         body,
         store.snapshot(),

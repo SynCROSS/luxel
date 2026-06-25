@@ -9,41 +9,58 @@ import { createRenderWorker } from "../src/server/render-worker.ts";
 import { ensureSpiralFixture } from "../src/bench/ensure-spiral-fixture.ts";
 import { buildSpiralLuxelSfc } from "../src/bench/fixtures/spiral-sfc.ts";
 import { spiralTileCount } from "../src/bench/fixtures/spiral-html.ts";
+import { assertDeprecatedRouteNapiGone } from "../src/luxel-core/render-ir-native.ts";
 import { getLuxelRepoRoot } from "../src/paths.ts";
 
 const repoRoot = getLuxelRepoRoot();
-const genRoot = join(repoRoot, "packages/luxel/src/.generated/luxel-core-spiral");
+const genRoot = join(repoRoot, "packages/luxel/src/.generated");
+const spiralGen = join(genRoot, "luxel-core-spiral");
 
 describe("luxel-core native spiral SSR", () => {
   beforeAll(() => ensureCoreNodeBuilt(), 300_000);
 
-  test("native renderRouteDocumentFromStore matches TS compiled spiral HTML", async () => {
-    const { renderSpiralRouteFromStore } = await import("@luxel/core-node");
+  test("per-route spiral NAPI entrypoints are deprecated", () => {
+    assertDeprecatedRouteNapiGone();
+  });
 
+  test("native renderFromStore matches TS compiled spiral HTML", async () => {
     await ensureSpiralFixture(repoRoot);
-    const routesDir = join(genRoot, "routes");
+    const routesDir = join(spiralGen, "routes");
     await Bun.write(join(routesDir, "index.luxel"), buildSpiralLuxelSfc());
 
-    const route = await compileRoute(join(routesDir, "index.luxel"), {
+    const routeOpts = {
       routeId: "route:index",
       path: "/",
       source: "examples/spiral/src/routes/index.luxel",
       componentId: "sfc:spiral",
       slug: "index",
-      genRoot,
+    } as const;
+
+    const tsRoute = await compileRoute(join(routesDir, "index.luxel"), {
+      ...routeOpts,
+      genRoot: join(genRoot, "luxel-core-spiral-ts"),
+      ssrBackend: "ts",
+    });
+    const nativeRoute = await compileRoute(join(routesDir, "index.luxel"), {
+      ...routeOpts,
+      genRoot: join(genRoot, "luxel-core-spiral-native"),
+      ssrBackend: "native",
     });
 
     const store = new ResourceStore();
-    await route.load(createLoadContext(store));
-    const tsHtml = route.renderFromStore(store);
+    await tsRoute.load(createLoadContext(store));
 
-    const nativeHtml = renderSpiralRouteFromStore(JSON.stringify(store.snapshot()));
+    const tsHtml = tsRoute.renderFromStore(store);
+    const nativeHtml = nativeRoute.renderFromStore(store);
     expect(nativeHtml).toBe(tsHtml);
+    expect(nativeHtml.match(/class="tile"/g)?.length).toBe(spiralTileCount());
   }, 180_000);
 
   test("manifest ssr native delegates render worker to luxel-core", async () => {
     const appDir = await ensureSpiralFixture(repoRoot);
-    const app = await compileApp(repoRoot, appDir);
+    const app = await compileApp(repoRoot, appDir, {
+      routeSsrBackends: { "/": "native" },
+    });
     const route = app.manifest.routes.find((r) => r.path === "/");
     expect(route?.ssr).toBe("native");
 

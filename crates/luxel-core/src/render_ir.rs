@@ -139,7 +139,7 @@ fn build_element(
     if name.starts_with("on:") || name.starts_with("hydrate:") {
       continue;
     }
-    out_attrs.insert(name.clone(), value.clone());
+    out_attrs.insert(name.clone(), interpolate_attr_value(value, data));
   }
 
   let mut inner_parts: Vec<String> = Vec::new();
@@ -157,8 +157,7 @@ fn build_element(
         attrs: child_attrs,
         children: child_children,
       } => {
-        let (nested_attrs, nested_inner) =
-          build_element(child_tag, child_attrs, child_children, data);
+        let (nested_attrs, nested_inner) = build_element(child_tag, child_attrs, child_children, data);
         let attr_str: String = nested_attrs
           .iter()
           .map(|(k, v)| format!(r#" {k}="{}""#, escape_html(v)))
@@ -211,6 +210,10 @@ fn resolve_template_expr(expr: &TemplateExpr, data: &HashMap<String, Value>) -> 
 }
 
 fn resolve_expr(raw: &str, data: &HashMap<String, Value>) -> String {
+  value_to_string(&resolve_expr_value(raw, data))
+}
+
+fn resolve_expr_value(raw: &str, data: &HashMap<String, Value>) -> Value {
   if raw.contains('.') {
     let mut parts = raw.split('.');
     let head = parts.next().unwrap_or_default();
@@ -218,9 +221,40 @@ fn resolve_expr(raw: &str, data: &HashMap<String, Value>) -> String {
     for key in parts {
       cur = cur.and_then(|value| value.get(key).cloned());
     }
-    return value_to_string(&cur.unwrap_or(Value::Null));
+    return cur.unwrap_or(Value::Null);
   }
-  value_to_string(data.get(raw).unwrap_or(&Value::Null))
+  data.get(raw).cloned().unwrap_or(Value::Null)
+}
+
+fn interpolate_attr_value(template: &str, data: &HashMap<String, Value>) -> String {
+  if !template.contains('{') {
+    return template.to_string();
+  }
+  let mut out = String::with_capacity(template.len());
+  let mut rest = template;
+  while let Some(start) = rest.find('{') {
+    out.push_str(&rest[..start]);
+    let after_brace = &rest[start + 1..];
+    let Some(end) = after_brace.find('}') else {
+      out.push_str(&rest[start..]);
+      return out;
+    };
+    let expr = after_brace[..end].trim();
+    out.push_str(&format_attr_binding(expr, data));
+    rest = &after_brace[end + 1..];
+  }
+  out.push_str(rest);
+  out
+}
+
+fn format_attr_binding(expr: &str, data: &HashMap<String, Value>) -> String {
+  let value = resolve_expr_value(expr, data);
+  if expr.ends_with(".x") || expr.ends_with(".y") {
+    if let Some(n) = value.as_f64() {
+      return format!("{n:.2}");
+    }
+  }
+  value_to_string(&value)
 }
 
 fn value_to_string(value: &Value) -> String {
@@ -272,5 +306,19 @@ mod tests {
     let body = render_body_from_ir(COUNTER_IR, snapshot, COUNTER_BINDINGS).unwrap();
     assert!(body.contains("&lt;script&gt;"));
     assert!(!body.contains("<script>"));
+  }
+
+  const SPIRAL_IR: &str = r#"{"domOps":[{"kind":"element","tag":"div","attrs":{"id":"wrapper"},"children":[{"kind":"forLoop","listId":"tiles","itemName":"t","body":[{"kind":"element","tag":"div","attrs":{"class":"tile","style":"left:{t.x}px;top:{t.y}px"},"children":[]}]}]}],"bindPoints":[],"boundaryIds":[],"headStyle":""}"#;
+
+  const SPIRAL_BINDINGS: &str =
+    r#"[{"templateId":"tiles","resourceKey":"route:index:tiles","field":"tiles"}]"#;
+
+  #[test]
+  fn renders_spiral_tiles_for_loop_from_ir_json() {
+    let snapshot = r#"{"route:index:tiles":{"value":[{"x":1.5,"y":2.25},{"x":0.0,"y":10.0}]}}"#;
+    let body = render_body_from_ir(SPIRAL_IR, snapshot, SPIRAL_BINDINGS).unwrap();
+    assert!(body.contains(r#"<div id="wrapper">"#));
+    assert!(body.contains(r#"class="tile" style="left:1.50px;top:2.25px""#));
+    assert!(body.contains(r#"class="tile" style="left:0.00px;top:10.00px""#));
   }
 }

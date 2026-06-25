@@ -310,6 +310,9 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { renderSpiralRouteFromStore } = nativeBinding
+const { renderSpiralRouteFromStore, renderSpiralRouteFromTiles, renderCounterBodyFromStore, renderBodyFromIr } = nativeBinding
 
 module.exports.renderSpiralRouteFromStore = renderSpiralRouteFromStore
+module.exports.renderSpiralRouteFromTiles = renderSpiralRouteFromTiles
+module.exports.renderCounterBodyFromStore = renderCounterBodyFromStore
+module.exports.renderBodyFromIr = renderBodyFromIr
