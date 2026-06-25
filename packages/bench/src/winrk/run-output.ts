@@ -79,13 +79,23 @@ function outputBasename(fixture: WinrkFixtureId): string {
   return fixture === "counter" ? "winrk-latest" : `winrk-${fixture}-latest`;
 }
 
-export type StackObservabilityLine = {
-  stackId: string;
-  status: WinrkBenchResult["status"];
-  raw?: string;
-  reason?: string;
-  generatedAt: string;
-};
+export type StackObservabilityLine =
+  | {
+      stackId: string;
+      status: "ok";
+      generatedAt: string;
+      requestsPerSec: number;
+      latencyP50Ms?: number;
+      latencyP95Ms?: number;
+      errorRatePercent?: number;
+      raw: string;
+    }
+  | {
+      stackId: string;
+      status: "pending" | "error";
+      generatedAt: string;
+      reason: string;
+    };
 
 export function stackObservabilityFromResult(
   row: WinrkBenchResult,
@@ -95,15 +105,19 @@ export function stackObservabilityFromResult(
     return {
       stackId: row.id,
       status: row.status,
-      raw: row.winrk.raw,
       generatedAt,
+      requestsPerSec: row.requestsPerSec,
+      latencyP50Ms: row.latencyP50Ms,
+      latencyP95Ms: row.latencyP95Ms,
+      errorRatePercent: row.errorRatePercent,
+      raw: row.winrk.raw,
     };
   }
   return {
     stackId: row.id,
     status: row.status,
-    reason: row.reason,
     generatedAt,
+    reason: row.reason,
   };
 }
 
@@ -120,6 +134,7 @@ export async function writeFixtureRun(
   fixture: WinrkFixtureId,
   results: WinrkBenchResult[],
   meta: RunMeta,
+  opts?: { announce?: boolean },
 ): Promise<void> {
   const outDir = join(repoRoot, "docs/benchmarks/runs");
   await mkdir(outDir, { recursive: true });
@@ -144,6 +159,8 @@ export async function writeFixtureRun(
     join(outDir, `${base}.jsonl`),
     `${results.map((r) => JSON.stringify(r)).join("\n")}\n`,
   );
-  console.error(`wrote docs/benchmarks/runs/${base}.{json,md,jsonl}`);
-  console.error(`per-stack observability: docs/benchmarks/runs/stacks/${fixture}/*.jsonl`);
+  if (opts?.announce !== false) {
+    console.error(`wrote docs/benchmarks/runs/${base}.{json,md,jsonl}`);
+    console.error(`per-stack observability: docs/benchmarks/runs/stacks/${fixture}/*.jsonl`);
+  }
 }

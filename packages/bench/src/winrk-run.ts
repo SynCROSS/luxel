@@ -64,7 +64,7 @@ async function main() {
 
   console.error(`\n=== fixture: ${fixture} ===`);
   const onProgress = async (partial: WinrkBenchResult[]) => {
-    await writeFixtureRun(fixture, partial, meta);
+    await writeFixtureRun(fixture, partial, meta, { announce: false });
     const latest = partial.at(-1);
     if (latest) {
       await appendStackObservabilityLine(
@@ -79,9 +79,6 @@ async function main() {
     : await runAllWinrkStacks(stacks, { onProgress });
 
   await writeFixtureRun(fixture, results, meta);
-  for (const row of results) {
-    console.log(JSON.stringify({ fixture, ...row }));
-  }
 
   const gate =
     process.env.BENCH_REPRO_GATE === "1" ? evaluateWinrkReproGate(fixture, results) : { ok: true, failures: [] };
