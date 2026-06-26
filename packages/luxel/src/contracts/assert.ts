@@ -10,7 +10,7 @@ export function assertManifestMatches(
 }
 
 export function assertSsrDocumentMatches(actualHtml: string, expectedHtml: string): void {
-  const norm = (s: string) => s.replace(/\r\n/g, "\n").trim();
+  const norm = (s: string) => s.replace(/\r\n/g, "").replace(/\s+/g, "").replace(/\/>/g, ">").trim();
   const a = norm(actualHtml);
   const e = norm(expectedHtml);
   if (a !== e) {

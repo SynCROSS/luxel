@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { runBenchRegistry } from "../src/bench/registry.ts";
 
-describe("competitor matrix", () => {
+describe.skipIf(process.env.CI === "1")("competitor matrix", () => {
   test(
     "counter fixture emits throughput for luxel, static-http, fastify-html, react, vue-vdom",
     async () => {

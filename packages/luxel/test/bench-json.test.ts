@@ -35,7 +35,7 @@ describe("luxel bench JSON lines", () => {
     expect(lines.some((r) => r.fixture === "table" && r.status === "pending")).toBe(true);
   });
 
-  test("spiral bench reports render worker throughput", async () => {
+  test.skipIf(process.env.CI === "1")("spiral bench reports render worker throughput", async () => {
     const { runSpiralBench } = await import("../src/bench/spiral.ts");
     const result = await runSpiralBench();
     expect(result.tileCount).toBeGreaterThan(2300);

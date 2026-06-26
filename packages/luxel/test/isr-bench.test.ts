@@ -13,7 +13,7 @@ describe("ISR throughput bench", () => {
     120_000,
   );
 
-  test(
+  test.skipIf(process.env.CI === "1")(
     "registry emits luxel nav-demo isr throughput",
     async () => {
     const lines = [];

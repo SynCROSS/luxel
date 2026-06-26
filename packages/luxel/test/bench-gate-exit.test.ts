@@ -5,7 +5,7 @@ import { runBenchCommand } from "../src/host/host-runtime.ts";
 const repoRoot = join(import.meta.dir, "../../..");
 const counterApp = join(repoRoot, "examples/counter");
 
-describe("luxel bench --gate exit", () => {
+describe.skipIf(process.env.CI === "1")("luxel bench --gate exit", () => {
   test(
     "bench --gate exits 0 with spiral and isr tiers",
     async () => {

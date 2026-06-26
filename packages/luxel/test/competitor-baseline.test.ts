@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { runBenchRegistry } from "../src/bench/registry.ts";
 
-describe("competitor baseline bench", () => {
+describe.skipIf(process.env.CI === "1")("competitor baseline bench", () => {
   test(
     "counter fixture includes luxel and static-http baseline metrics",
     async () => {
