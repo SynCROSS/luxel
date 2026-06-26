@@ -1,4 +1,4 @@
-import { writeFile, mkdir, appendFile } from "node:fs/promises";
+import { writeFile, mkdir, rm } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { WinrkBenchResult, WinrkFixtureId } from "./registry.ts";
@@ -6,7 +6,11 @@ import { benchLatencySampleCount } from "./bench-latency-config.ts";
 import { resolveBenchLoadTesterMeta, type BenchLoadTester } from "./load-test.ts";
 import { winrkDefaultThreads } from "./hardware-concurrency.ts";
 
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
+const defaultRepoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
+
+function repoRootDir(): string {
+  return process.env.LUXEL_WINRK_REPO_ROOT ?? defaultRepoRoot;
+}
 
 export type RunMeta = {
   generatedAt: string;
@@ -79,13 +83,23 @@ function outputBasename(fixture: WinrkFixtureId): string {
   return fixture === "counter" ? "winrk-latest" : `winrk-${fixture}-latest`;
 }
 
-export type StackObservabilityLine = {
-  stackId: string;
-  status: WinrkBenchResult["status"];
-  raw?: string;
-  reason?: string;
-  generatedAt: string;
-};
+export type StackObservabilityLine =
+  | {
+      stackId: string;
+      status: "ok";
+      generatedAt: string;
+      requestsPerSec: number;
+      latencyP50Ms?: number;
+      latencyP95Ms?: number;
+      errorRatePercent?: number;
+      raw: string;
+    }
+  | {
+      stackId: string;
+      status: "pending" | "error";
+      generatedAt: string;
+      reason: string;
+    };
 
 export function stackObservabilityFromResult(
   row: WinrkBenchResult,
@@ -95,33 +109,44 @@ export function stackObservabilityFromResult(
     return {
       stackId: row.id,
       status: row.status,
-      raw: row.winrk.raw,
       generatedAt,
+      requestsPerSec: row.requestsPerSec,
+      latencyP50Ms: row.latencyP50Ms,
+      latencyP95Ms: row.latencyP95Ms,
+      errorRatePercent: row.errorRatePercent,
+      raw: row.winrk.raw,
     };
   }
   return {
     stackId: row.id,
     status: row.status,
-    reason: row.reason,
     generatedAt,
+    reason: row.reason,
   };
 }
 
-export async function appendStackObservabilityLine(
+export async function resetStackObservabilityDir(fixture: WinrkFixtureId): Promise<void> {
+  const outDir = join(repoRootDir(), "docs/benchmarks/runs/stacks", fixture);
+  await rm(outDir, { recursive: true, force: true });
+  await mkdir(outDir, { recursive: true });
+}
+
+export async function writeStackObservabilityLine(
   fixture: WinrkFixtureId,
   line: StackObservabilityLine,
 ): Promise<void> {
-  const outDir = join(repoRoot, "docs/benchmarks/runs/stacks", fixture);
+  const outDir = join(repoRootDir(), "docs/benchmarks/runs/stacks", fixture);
   await mkdir(outDir, { recursive: true });
-  await appendFile(join(outDir, `${line.stackId}.jsonl`), `${JSON.stringify(line)}\n`);
+  await writeFile(join(outDir, `${line.stackId}.jsonl`), `${JSON.stringify(line)}\n`);
 }
 
 export async function writeFixtureRun(
   fixture: WinrkFixtureId,
   results: WinrkBenchResult[],
   meta: RunMeta,
+  opts?: { announce?: boolean },
 ): Promise<void> {
-  const outDir = join(repoRoot, "docs/benchmarks/runs");
+  const outDir = join(repoRootDir(), "docs/benchmarks/runs");
   await mkdir(outDir, { recursive: true });
   const base = outputBasename(fixture);
   const payload = {
@@ -144,6 +169,8 @@ export async function writeFixtureRun(
     join(outDir, `${base}.jsonl`),
     `${results.map((r) => JSON.stringify(r)).join("\n")}\n`,
   );
-  console.error(`wrote docs/benchmarks/runs/${base}.{json,md,jsonl}`);
-  console.error(`per-stack observability: docs/benchmarks/runs/stacks/${fixture}/*.jsonl`);
+  if (opts?.announce !== false) {
+    console.error(`wrote docs/benchmarks/runs/${base}.{json,md,jsonl}`);
+    console.error(`per-stack observability: docs/benchmarks/runs/stacks/${fixture}/*.jsonl`);
+  }
 }

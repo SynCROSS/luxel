@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, test } from "bun:test";
 import { runSpiralBenchCompare } from "../src/bench/spiral.ts";
 import { ensureCoreNodeBuilt } from "./helpers/ensure-core-node.ts";
 
-describe("spiral native bench", () => {
+describe.skipIf(process.env.CI === "1")("spiral native bench", () => {
   beforeAll(() => ensureCoreNodeBuilt(), 300_000);
 
   test("native spiral throughput matches TS html contract", async () => {

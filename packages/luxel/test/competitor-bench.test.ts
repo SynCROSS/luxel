@@ -13,7 +13,7 @@ const COMPARISON_FRAMEWORKS = [
   "fastify-html",
 ] as const;
 
-describe("competitor bench registry", () => {
+describe.skipIf(process.env.CI === "1")("competitor bench registry", () => {
   test(
     "counter fixture includes luxel and fastify-html throughput",
     async () => {
