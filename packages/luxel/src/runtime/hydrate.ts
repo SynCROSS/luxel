@@ -82,4 +82,5 @@ export function hydrateFromDocument(modules: Record<string, BoundaryModule>): vo
     boundaries: hydration.boundaries,
     modules,
   });
+  (globalThis as { __LUXEL_HYDRATION_READY?: boolean }).__LUXEL_HYDRATION_READY = true;
 }

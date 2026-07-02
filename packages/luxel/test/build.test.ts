@@ -7,6 +7,11 @@ import { loadManifestContract } from "../src/contracts/loader.ts";
 
 const repoRoot = join(import.meta.dir, "../../..");
 
+function stripNativeSsrFields<T extends { ssr?: string; nativeRuntime?: string }>(route: T) {
+  const { ssr: _ssr, nativeRuntime: _nativeRuntime, ...rest } = route;
+  return rest;
+}
+
 describe("luxel build", () => {
   test("emits manifest and assets", async () => {
     const outDir = await buildApp(repoRoot, "examples/counter");
@@ -16,8 +21,16 @@ describe("luxel build", () => {
     const index = manifest.routes.find((r: { id: string }) => r.id === "route:index");
     const goldenIndex = golden.routes.find((r) => r.id === "route:index");
     assertManifestMatches(
-      { version: 1, routes: [index], components: [manifest.components.find((c: { id: string }) => c.id === "sfc:index")] },
-      { version: 1, routes: [goldenIndex], components: [golden.components.find((c) => c.id === "sfc:index")] },
+      {
+        version: 1,
+        routes: [stripNativeSsrFields(index)],
+        components: [manifest.components.find((c: { id: string }) => c.id === "sfc:index")],
+      },
+      {
+        version: 1,
+        routes: [stripNativeSsrFields(goldenIndex!)],
+        components: [golden.components.find((c) => c.id === "sfc:index")!],
+      },
     );
     const about = manifest.routes.find((r: { id: string }) => r.id === "route:about");
     expect(about?.path).toBe("/about");

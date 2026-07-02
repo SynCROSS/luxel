@@ -4,6 +4,8 @@ import { esbuildBackend } from "../host/backends/esbuild-backend.ts";
 
 export function pickBundleBackend(override?: BundleBackend): BundleBackend {
   if (override) return override;
-  if (typeof Bun !== "undefined") return bunBundleBackend;
+  if (process.env.LUXEL_BUNDLE_BACKEND === "bun" && typeof Bun !== "undefined") {
+    return bunBundleBackend;
+  }
   return esbuildBackend;
 }

@@ -3,3 +3,5 @@ root = "packages/luxel/test"
 
 [install]
 backend = "copyfile"
+linker = "hoisted"
+publicHoistPattern = ["esbuild", "@esbuild/*"]

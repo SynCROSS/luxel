@@ -21,7 +21,7 @@ async function measureInteraction(
   try {
     const timings: number[] = [];
     for (let i = 0; i < samples; i++) {
-      await page.goto(url, { waitUntil: "networkidle" });
+      await page.goto(url, { waitUntil: "domcontentloaded" });
       await warmup(page);
       const start = performance.now();
       await interact(page);
@@ -44,10 +44,10 @@ export async function runLuxelInpBench(): Promise<
       async (page) => {
         const count = page.locator('[data-luxel-text="count"]');
         await count.waitFor({ state: "visible" });
-        await page.waitForFunction(() => {
-          const el = document.querySelector('[data-luxel-text="count"]');
-          return el instanceof HTMLButtonElement && !el.disabled;
-        });
+        await page.waitForFunction(
+          () =>
+            (window as { __LUXEL_HYDRATION_READY?: boolean }).__LUXEL_HYDRATION_READY === true,
+        );
       },
       async (page) => {
         await page.locator('[data-luxel-text="count"]').click();
