@@ -14,7 +14,7 @@ export type BenchRenderWorkerPool = {
 };
 
 export type BenchRenderWorkerPoolOptions = {
-  /** One warmup job at a time — avoids parallel compile races on shared bench artifacts. */
+  /** One warmup job at a time ??avoids parallel compile races on shared bench artifacts. */
   sequentialWarmup?: boolean;
   /** Worker may ack without html; pool resolves with this shared document. */
   pooledHtml?: string;
@@ -62,9 +62,13 @@ export function benchRenderWorkerCount(): number {
 
 export type BenchWorkerPoolFixture = "counter" | "spiral";
 
+/** Upper bound when bisecting counter worker counts (min with hardwareConcurrency). */
+export const COUNTER_RENDER_WORKER_SEARCH_CAP = 12;
+
+/** WinRK-tuned smallest count passing react-ssr-worker-pool ??react-ssr gate. */
 export const COUNTER_RENDER_WORKER_CAP = 1;
 
-/** Testable default sizing — env override handled by benchRenderWorkerCountForFixture. */
+/** Testable default sizing ??env override handled by benchRenderWorkerCountForFixture. */
 export function benchRenderWorkerCountForHardwareConcurrency(
   hardwareConcurrency: number,
   fixture: BenchWorkerPoolFixture,

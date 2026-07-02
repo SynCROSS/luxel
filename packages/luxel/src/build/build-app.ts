@@ -11,6 +11,7 @@ import { createRenderWorker } from "../server/render-worker.ts";
 import { writeStaticHtml } from "../server/static-html.ts";
 import type { BundleBackend } from "../host/backends/types.ts";
 import { pickBundleBackend } from "./pick-bundle-backend.ts";
+import { assertNativeModeForAppRoot } from "../config/native-mode.ts";
 
 export type BuildAppOptions = {
   bundleBackend?: BundleBackend;
@@ -23,6 +24,7 @@ export async function buildApp(
 ): Promise<string> {
   const bundleBackend = options?.bundleBackend ?? pickBundleBackend();
   const appRoot = join(repoRoot, appDir);
+  await assertNativeModeForAppRoot(appRoot);
   const config = await loadLuxelConfig(appRoot);
   const paths = resolveAppPaths(repoRoot, appDir, config);
   const app = await compileApp(repoRoot, appDir, { bundleBackend });

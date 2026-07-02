@@ -43,6 +43,8 @@ Run: `bun packages/luxel/src/cli.ts bench` (v1.0). v1.1: native `luxel-node.mjs`
 
 **Gate:** `luxel bench --gate` (active tier: SSR counter only until more runners land). Fast tests: `LUXEL_BENCH_SKIP_INP=1 luxel bench`. INP requires `bunx playwright install chromium`.
 
+**Native default gate:** `luxel bench --gate --native-gate` (or `--native-gate` alone) evaluates WinRK + INP + boundary + RSS/cold-start/install for `native.mode: auto` enablement. Publishes `docs/benchmarks/runs/native-default-gate-*.md`. See [native-default-enablement.md](./native-default-enablement.md).
+
 **v1.0 gate:** `luxel bench --gate` (or CI equivalent) — all tier geo means ≤ 1.08 in **one** run. Fastest/min denominator = only frameworks with non-`pending` results in that run.
 
 Publish runs: `LUXEL_BENCH_OUT=docs/benchmarks/runs/<date>.jsonl luxel bench`

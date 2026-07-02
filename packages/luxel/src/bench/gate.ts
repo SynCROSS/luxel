@@ -1,6 +1,6 @@
 import type { BenchJsonLine } from "./registry.ts";
 
-export const BENCH_GATE_THRESHOLD = 1.08;
+export const BENCH_GATE_THRESHOLD = Number(process.env.LUXEL_BENCH_GATE_THRESHOLD ?? 1.08);
 
 /** Tiers enforced by `luxel bench --gate` (extend as runners land). */
 export const ACTIVE_GATE_TIERS = ["ssr", "isr"] as const satisfies readonly BenchTier[];

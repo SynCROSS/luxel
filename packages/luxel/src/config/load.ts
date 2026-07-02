@@ -4,15 +4,22 @@ import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 import * as esbuild from "esbuild";
 import type { LuxelServerConfig } from "./compress.ts";
+import type { NativeModeConfig } from "./native-mode.ts";
+import type { ThirdPartySchemaRef } from "../resource-store/luxel-data.ts";
 
 export type LuxelConfig = {
   root: string;
   routesDir: string;
   outDir: string;
   server?: LuxelServerConfig;
+  native?: NativeModeConfig;
   routes?: Record<
     string,
-    { client?: { hydration: "auto" | "never" }; ssr?: "ts" | "native" }
+    {
+      client?: { hydration: "auto" | "never" };
+      ssr?: "ts" | "native";
+      thirdPartySchema?: ThirdPartySchemaRef;
+    }
   >;
 };
 
@@ -58,6 +65,7 @@ export async function loadLuxelConfig(appRoot: string): Promise<LuxelConfig> {
     routesDir: cfg.routesDir ?? "src/routes",
     outDir: cfg.outDir ?? "dist",
     server: cfg.server,
+    native: cfg.native,
     routes: cfg.routes,
   };
 }

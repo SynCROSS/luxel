@@ -44,8 +44,20 @@ Framework rows (Luxel, React, Vue, Solid, Svelte, fastify-html) **must** run a f
 
 ## HTTP harness
 
-- Framework SSR via `createListenFetchServer` → **Bun.serve** when available.
-- **fastify-html** uses Fastify listen + `fetch` loop (same client pattern, different server impl — noted in results).
+- **Inline framework + Luxel rows (locked):** same runtime and server shape — **Bun.serve** fetch handler, `NODE_ENV=production`, `idleTimeout: 120` (see ADR-0006). WinRK uses `createFetchServer`; Luxel test/bench servers use `createListenFetchServer` (equivalent Bun.serve path).
+- **Labeled baselines:** `fastify-html` and `fastify-static` use Fastify listen — noted in results; excluded from framework geo-mean.
+- **Prod-stack rows** (Next RSC, SvelteKit, SolidStart): framework deploy handler + internal `node:http` — separate deployment tier; not the inline harness reference.
+
+## Competitor peak tuning
+
+Each framework row must reflect that framework's **fastest realistic** production SSR path, not a deliberately slow stub:
+
+- Production Vite/build flags (`minify`, `treeshake`, `dev: false` compiler options).
+- Correct SSR entry (`renderToString`, Solid `ssr`/`renderToString`, Svelte `render` from `svelte/server`, Vue Vapor `vue-vapor/server-renderer`).
+- Port [SynCROSS/ssr-performance-showdown](https://github.com/SynCROSS/ssr-performance-showdown) patterns when faster than current Luxel bench sources — update `packages/luxel/src/bench/competitors/sources/`.
+- **Invalid:** counter without reactive binding (e.g. literal `0` in template); spiral with client signals/refs on tiles; duplicate inline markup diverging from shared source files.
+
+CI guard: `packages/luxel/test/competitor-source-idiomatic.test.ts`.
 
 ## Document weight
 
@@ -65,5 +77,9 @@ Framework rows (Luxel, React, Vue, Solid, Svelte, fastify-html) **must** run a f
 | `vue-vapor` | Vue 3.6 beta Vapor mode (`createVaporApp`, `vapor` SFC compile) |
 
 ## Gate denominators
+
+**Tier-2 WinRK geo-mean (locked):** flat across every `role: framework` row with `status: ok` in the fixture — **inline**, **prod-stack** (Next RSC, SvelteKit, SolidStart), and **`*-worker-pool`** rows all count. Excluded: `role: baseline` (`static-http`, `fastify-static`), `pending`, `error`. **`luxel-ssr-native` and `luxel-spiral-ssr-native` always count** when `status: ok` — even after native merges into default `luxel-ssr` / `luxel-spiral-ssr`; lab row stays in gate denominator to prevent native regression. **Native merge (locked):** default `luxel-ssr` / `luxel-spiral-ssr` adopt native body when `luxel-ssr-native` ≥ `luxel-ssr-full` (per-request parity bar); merged row keeps **precompute fast path** when legal **and** native body when manifest `ssr: "native"` + loadable addon. Per Luxel row: `factor = rps_fastest_competitor / rps_luxel_row` where `rps_fastest_competitor` = max RPS among ok non-Luxel framework rows in that fixture. **Pass:** geometric mean of Luxel row factors ≤ **1.08**. Implementation: `packages/bench/src/winrk/winrk-geo-gate.ts`.
+
+**`luxel bench --gate`:** separate micro-harness JSON lines; same 1.08 threshold; framework family denominators {Luxel, React, Vue, Solid, Svelte} per fixture cell.
 
 Geo-mean factors use only frameworks with non-`pending` results in the same CI run (see `CONTEXT.md` **v1.0 performance exit**).

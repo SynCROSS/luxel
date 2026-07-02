@@ -48,6 +48,7 @@ export const esbuildBackend: BundleBackend = {
       write,
       logLevel: "silent",
       sourcemap: false,
+      packages: options.packages ?? "bundle",
       resolveExtensions: [".ts", ".tsx", ".js", ".mjs", ".json"],
     });
 

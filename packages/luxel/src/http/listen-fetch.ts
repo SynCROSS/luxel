@@ -19,6 +19,7 @@ export async function createListenFetchServer(
       hostname,
       port,
       fetch,
+      idleTimeout: 120,
     });
     return {
       url: `http://${hostname}:${server.port}`,

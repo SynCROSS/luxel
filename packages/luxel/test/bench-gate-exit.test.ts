@@ -17,7 +17,7 @@ describe.skipIf(process.env.CI === "1")("luxel bench --gate exit", () => {
       process.env.LUXEL_BENCH_GATE_SSR_FIXTURES = "counter";
       process.chdir(counterApp);
       try {
-        const code = await runBenchCommand(["bench", "--gate"]);
+        const code = await runBenchCommand(["--gate"], repoRoot);
         expect(code).toBe(0);
       } finally {
         process.chdir(prevCwd);

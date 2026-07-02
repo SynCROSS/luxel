@@ -8,6 +8,8 @@ export type BundleOptions = {
   minify?: boolean;
   /** false = return outputFiles in memory (default when no outfile/outdir). */
   write?: boolean;
+  /** Keep node_modules external (serve entrypoints). */
+  packages?: "bundle" | "external";
 };
 
 export type BundleOutput = {

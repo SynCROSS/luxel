@@ -37,7 +37,7 @@ export function assertNativeSsrEligible(renderIr: RenderIr): void {
 
 function findSpiralTilesForLoop(ops: readonly DomOp[]): string | null {
   for (const op of ops) {
-    if (op.kind === "forLoop" && op.listId === "tiles") {
+    if (op.kind === "forLoop" && op.listId === "tiles" && forLoopIsSpiralTileLayout(op)) {
       return op.listId;
     }
     if (op.kind === "element") {
@@ -46,6 +46,18 @@ function findSpiralTilesForLoop(ops: readonly DomOp[]): string | null {
     }
   }
   return null;
+}
+
+/** Spiral native SSR only for positioned `.tile` loops (`t.x` / `t.y`), not generic `{#each tiles}`. */
+function forLoopIsSpiralTileLayout(op: Extract<DomOp, { kind: "forLoop" }>): boolean {
+  for (const child of op.body) {
+    if (child.kind !== "element" || child.tag !== "div") continue;
+    const className = child.attrs.class ?? child.attrs.className ?? "";
+    if (!className.split(/\s+/).includes("tile")) continue;
+    const style = child.attrs.style ?? "";
+    if (style.includes("t.x") && style.includes("t.y")) return true;
+  }
+  return false;
 }
 
 function domOpsHaveTextExpr(ops: readonly DomOp[], expr: string): boolean {

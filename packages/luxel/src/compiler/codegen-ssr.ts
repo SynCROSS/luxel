@@ -3,6 +3,7 @@ import {
   serializeLuxelData,
   serializeLuxelHydration,
   type TemplateBinding,
+  type ThirdPartySchemaRef,
 } from "../resource-store/luxel-data.ts";
 import type { ResourceSnapshot } from "../resource-store/types.ts";
 import type { DomOp } from "./dom-op.ts";
@@ -18,6 +19,7 @@ export type CodegenSsrOptions = {
   shipClientRuntime?: boolean;
   shipDataSidecar?: boolean;
   shipHydrationSidecar?: boolean;
+  thirdPartySchema?: ThirdPartySchemaRef;
 };
 
 export function codegenSsrDocumentFromBody(
@@ -68,6 +70,7 @@ function wrapSsrShell(
           directive: "load",
           clientModule: options.clientModule,
         })),
+        thirdPartySchema: options.thirdPartySchema,
       })}</script>`,
     );
   }

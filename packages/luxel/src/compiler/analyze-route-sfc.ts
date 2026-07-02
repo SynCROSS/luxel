@@ -100,7 +100,7 @@ function resolveDocumentPayload(
   return {
     shipSidecars: {
       data: hasClientNav || hasClientBundle,
-      hydration: hasClientBundle,
+      hydration: hasClientBundle || hasClientNav,
       clientScript: hasClientBundle || hasClientNav,
     },
   };

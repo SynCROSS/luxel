@@ -13,6 +13,11 @@ export type TemplateBinding = {
   field: string;
 };
 
+export type ThirdPartySchemaRef = {
+  id: string;
+  allowedResourceKeys: readonly string[];
+};
+
 export function isLuxelDataV2(value: unknown): value is LuxelDataV2 {
   return (
     typeof value === "object" &&
@@ -55,6 +60,7 @@ export type LuxelHydrationPayload = {
     directive: string;
     clientModule: string;
   }[];
+  thirdPartySchema?: ThirdPartySchemaRef;
 };
 
 export function serializeLuxelHydration(payload: LuxelHydrationPayload): string {

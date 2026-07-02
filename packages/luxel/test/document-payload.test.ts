@@ -183,4 +183,20 @@ export async function load(ctx) {
     assertSsrContainsRequiredParts(html);
     expect(html).toMatch(/<script type="module"/);
   });
+
+  test("nav-demo ships hydration sidecar for client nav without hydrate boundaries", async () => {
+    const app = await compileApp(repoRoot, "examples/nav-demo");
+    const route = app.manifest.routes.find((r) => r.path === "/");
+    expect(route?.shipSidecars).toEqual({
+      data: true,
+      hydration: true,
+      clientScript: true,
+    });
+
+    const worker = createRenderWorker(app);
+    const { html } = await worker.render("/");
+    expect(html).toContain('id="luxel-hydration"');
+    expect(html).toContain('id="luxel-data"');
+    expect(html).toMatch(/<script type="module"/);
+  });
 });

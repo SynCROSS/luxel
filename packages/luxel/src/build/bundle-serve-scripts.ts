@@ -14,17 +14,17 @@ export async function bundleServeScripts(
   const denoEntry = join(pkgSrc, "build", "serve-deno-entry.ts");
   const serverDir = join(outDir, "server");
 
-  const [nodeOutput] = await bundleEsm(backend, [nodeEntry], {
+  const serveBundleOptions = {
     root: pkgSrc,
-    platform: "node",
+    platform: "node" as const,
     write: false,
-  });
+    // Keep npm deps external so esbuild's native binary resolves from hoisted node_modules.
+    packages: "external" as const,
+  };
+
+  const [nodeOutput] = await bundleEsm(backend, [nodeEntry], serveBundleOptions);
   await writeFile(join(serverDir, "start-node.mjs"), nodeOutput.text, "utf8");
 
-  const [denoOutput] = await bundleEsm(backend, [denoEntry], {
-    root: pkgSrc,
-    platform: "node",
-    write: false,
-  });
+  const [denoOutput] = await bundleEsm(backend, [denoEntry], serveBundleOptions);
   await writeFile(join(serverDir, "start-deno.mjs"), denoOutput.text, "utf8");
 }

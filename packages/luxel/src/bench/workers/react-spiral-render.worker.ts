@@ -24,22 +24,19 @@ async function getRenderToString(): Promise<(element: unknown) => string> {
   return fn;
 }
 
-async function renderOnce(): Promise<string> {
+async function renderOnce(): Promise<void> {
   const renderToString = await getRenderToString();
   const { createElement } = await import("react");
   spiralApp ??= await importPrecompiledReactTsx(competitorSource("spiral", "react.tsx"), "spiral-react");
-  const body = renderToString(createElement(spiralApp));
-  return spiralDocumentFromBody(body);
+  renderToString(createElement(spiralApp));
 }
 
-async function onRenderRequest(): Promise<void> {
+onBenchWorkerMessage(async () => {
   try {
-    const html = await renderOnce();
-    postBenchWorkerResult({ ok: true, html });
+    await renderOnce();
+    postBenchWorkerResult({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     postBenchWorkerResult({ ok: false, error: message });
   }
-}
-
-onBenchWorkerMessage(onRenderRequest);
+});

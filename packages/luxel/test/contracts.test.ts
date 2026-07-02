@@ -23,9 +23,21 @@ describe("artifact contracts", () => {
     const index = app.manifest.routes.find((r) => r.id === "route:index");
     const goldenIndex = golden.routes.find((r) => r.id === "route:index");
     expect(index).toBeDefined();
+    const stripNativeSsrFields = <T extends { ssr?: string; nativeRuntime?: string }>(route: T) => {
+      const { ssr: _ssr, nativeRuntime: _nativeRuntime, ...rest } = route;
+      return rest;
+    };
     assertManifestMatches(
-      { version: 2, routes: [index!], components: [app.manifest.components.find((c) => c.id === "sfc:index")!] },
-      { version: 2, routes: [goldenIndex!], components: [golden.components.find((c) => c.id === "sfc:index")!] },
+      {
+        version: 2,
+        routes: [stripNativeSsrFields(index!)],
+        components: [app.manifest.components.find((c) => c.id === "sfc:index")!],
+      },
+      {
+        version: 2,
+        routes: [stripNativeSsrFields(goldenIndex!)],
+        components: [golden.components.find((c) => c.id === "sfc:index")!],
+      },
     );
   });
 

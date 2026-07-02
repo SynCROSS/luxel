@@ -1,7 +1,8 @@
 import { competitorSource } from "./sources-path.ts";
 import { compileReactTsxForSsr } from "./compile-react-tsx.ts";
-import { loadVueSfcForSsr } from "./compile-vue-sfc.ts";
-import { loadSvelteSfcForSsr } from "./compile-svelte-sfc.ts";
+import { compileVueSfcForSsr } from "./compile-vue-sfc.ts";
+import { compileSvelteSfcForSsr } from "./compile-svelte-sfc.ts";
+import { compileSolidTsForSsr } from "./compile-solid-ts.ts";
 import type { SpiralInlineFramework } from "./spiral-inline-render.ts";
 
 export type InlineSsrFixture = "counter" | "spiral";
@@ -16,25 +17,29 @@ export async function precompileInlineSsr(
       await compileReactTsxForSsr(competitorSource(fixture, "react.tsx"), `${fixture}-react`);
       return;
     case "vue-vdom":
-      await loadVueSfcForSsr(
+      await compileVueSfcForSsr(
         competitorSource(fixture, "vue-vdom.vue"),
         `${fixture}-vue-vdom`,
       );
       return;
     case "vue-vapor":
-      await loadVueSfcForSsr(
+      await compileVueSfcForSsr(
         competitorSource(fixture, "vue-vapor.vue"),
         `${fixture}-vue-vapor`,
         true,
       );
       return;
     case "svelte":
-      await loadSvelteSfcForSsr(
+      await compileSvelteSfcForSsr(
         competitorSource(fixture, "svelte.svelte"),
         fixture === "counter" ? "counter" : "spiral",
       );
       return;
     case "solid":
+      await compileSolidTsForSsr(
+        competitorSource(fixture, "solid.ts"),
+        fixture === "counter" ? "counter-solid" : "spiral-solid",
+      );
       return;
     default: {
       const _exhaustive: never = framework;

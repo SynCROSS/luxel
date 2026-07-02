@@ -38,7 +38,7 @@ export async function runNativeHost(
   ctx.bundleBackend = defaultBundleBackend;
 
   if (cmd === "bench") {
-    return runBenchCommand(args);
+    return runBenchCommand(args.slice(1), ctx.repoRoot);
   }
 
   const { code, result } = await dispatchHostCommand(cmd, args.slice(1), ctx);
