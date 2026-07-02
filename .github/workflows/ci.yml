@@ -166,7 +166,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - uses: dtolnay/rust-toolchain@stable
       - name: Install dependencies (bun workspaces)
-        run: bun install
+        run: bun install --backend=copyfile
       - name: Build native addon
         run: bun run build:core-node
       - name: Build counter example
