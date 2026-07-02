@@ -1,8 +1,9 @@
-import { spawnSync } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, copyFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { BENCH_SERVER_MJS, kitPackageJson } from "./shared.ts";
+import { runSvelteKitViteBuild } from "./svelte-vite-build.ts";
+import { BENCH_SERVER_MJS, SVELTEKIT_POOL_BOOTSTRAP, kitPackageJson } from "./shared.ts";
+import { competitorSource } from "@luxel/luxel/bench";
 
 async function scaffoldSvelteKit(app: "sveltekit-ssr" | "sveltekit-isr", isr: boolean) {
   const root = join(dirname(fileURLToPath(import.meta.url)), "..", app);
@@ -39,10 +40,7 @@ export default defineConfig({
     `export const prerender = false;
 export const ssr = true;`,
   );
-  await writeFile(
-    join(root, "src/routes/+page.svelte"),
-    `<h1>Hello Luxel</h1><section><button type="button" data-luxel-text="count">0</button></section>`,
-  );
+  await copyFile(competitorSource("counter", "svelte.svelte"), join(root, "src/routes/+page.svelte"));
   if (isr) {
     await writeFile(
       join(root, "src/hooks.server.ts"),
@@ -62,10 +60,9 @@ export async function handle({ event, resolve }) {
     );
   }
   await writeFile(join(root, ".bench-server.mjs"), BENCH_SERVER_MJS);
+  await writeFile(join(root, ".bench-pool-bootstrap.mjs"), SVELTEKIT_POOL_BOOTSTRAP);
 
-  const result = spawnSync("bunx", ["vite", "build"], { cwd: root, stdio: "inherit", shell: true, env: { ...process.env, NODE_ENV: "production" } });
-  if (result.status !== 0) process.exit(result.status ?? 1);
-  console.log(`built ${app}`);
+  await runSvelteKitViteBuild(root, app);
 }
 
 await scaffoldSvelteKit("sveltekit-ssr", false);

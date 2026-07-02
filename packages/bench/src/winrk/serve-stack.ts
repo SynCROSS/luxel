@@ -5,30 +5,31 @@
  *   bun run src/winrk/serve-stack.ts luxel-ssr
  *   winrk -t8 -c400 -d15 http://127.0.0.1:PORT
  */
-import { allWinrkStacks } from "./registry.ts";
-
-const STACKS = allWinrkStacks();
-
-const id = process.argv[2];
-if (!id) {
+import "./apply-bench-host-env.ts";
+const stackId = process.argv[2];
+if (!stackId) {
+  const { allWinrkStacks } = await import("./registry.ts");
   console.error("usage: bun run src/winrk/serve-stack.ts <stack-id>");
   console.error("");
   console.error("stack ids:");
-  for (const row of STACKS) {
+  for (const row of allWinrkStacks()) {
     console.error(`  ${row.id}${row.pendingReason ? ` (may need: ${row.pendingReason})` : ""}`);
   }
   process.exit(0);
 }
 
-const row = STACKS.find((s) => s.id === id);
+const { allWinrkStacks } = await import("./registry.ts");
+const STACKS = allWinrkStacks();
+
+const row = STACKS.find((s) => s.id === stackId);
 if (!row) {
-  console.error(`unknown stack: ${id}`);
+  console.error(`unknown stack: ${stackId}`);
   process.exit(1);
 }
 
 const server = await row.start();
 if (!server) {
-  console.error(`stack ${id} not available: ${row.pendingReason ?? "start returned null"}`);
+  console.error(`stack ${stackId} not available: ${row.pendingReason ?? "start returned null"}`);
   process.exit(1);
 }
 
