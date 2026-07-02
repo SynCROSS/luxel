@@ -15,6 +15,7 @@ import { createStaticServer, type BenchServer } from "../http-server.ts";
 type CounterBenchOpts = {
   ssrBackend?: "ts" | "native";
   benchFullRender?: boolean;
+  benchNativeLab?: boolean;
 };
 
 async function startLuxelCounterBenchServer(opts: CounterBenchOpts = {}): Promise<BenchServer> {
@@ -24,6 +25,7 @@ async function startLuxelCounterBenchServer(opts: CounterBenchOpts = {}): Promis
   }
   return createTestServer(0, {
     benchFullRender: opts.benchFullRender ?? false,
+    benchNativeLab: opts.benchNativeLab ?? false,
     routeSsrBackends: { "/": ssrBackend },
   });
 }
@@ -38,42 +40,57 @@ export async function startLuxelSsrFullServer(): Promise<BenchServer> {
 
 /** Counter luxel-core native SSR (opt-in row until native ≥ TS on WinRK). */
 export async function startLuxelSsrNativeServer(): Promise<BenchServer> {
-  return startLuxelCounterBenchServer({ ssrBackend: "native", benchFullRender: false });
+  return startLuxelCounterBenchServer({
+    ssrBackend: "native",
+    benchFullRender: false,
+    benchNativeLab: true,
+  });
 }
 
 type SpiralBenchOpts = {
   ssrBackend?: "ts" | "native";
   benchFullRender?: boolean;
+  benchNativeLab?: boolean;
 };
 
 async function startLuxelSpiralBenchServer(opts: SpiralBenchOpts = {}): Promise<BenchServer> {
-  const ssrBackend = opts.ssrBackend ?? "ts";
+  const ssrBackend = opts.ssrBackend;
   if (ssrBackend === "native") {
     await prepareLuxelSpiralNativeBench();
   }
   return createBenchServer("spiral", 0, {
     benchFullRender: opts.benchFullRender ?? false,
-    routeSsrBackends: { "/": ssrBackend },
+    benchNativeLab: opts.benchNativeLab ?? false,
+    ...(ssrBackend ? { routeSsrBackends: { "/": ssrBackend } } : {}),
     benchSlimFetch: true,
+    benchMinimalHtml: true,
   });
 }
 
-/** Spiral tier-2 — TS compiled SSR (default until native wins WinRK). */
+/** Spiral tier-2 — auto native when core-node loadable; per-request tile load (fairness.md). */
 export async function startLuxelSpiralSsrServer(): Promise<BenchServer> {
-  return startLuxelSpiralBenchServer({ ssrBackend: "ts", benchFullRender: false });
+  return startLuxelSpiralBenchServer({ benchFullRender: false });
 }
 
 export async function startLuxelSpiralSsrFullServer(): Promise<BenchServer> {
   return startLuxelSpiralBenchServer({ ssrBackend: "ts", benchFullRender: true });
 }
 
-/** Spiral luxel-core native SSR (opt-in row until native ≥ TS on WinRK). */
-export async function startLuxelSpiralSsrNativeServer(): Promise<BenchServer> {
-  return startLuxelSpiralBenchServer({ ssrBackend: "native", benchFullRender: false });
+/** Spiral luxel-core native SSR lab row — per-request native bisect. */
+export async function startLuxelSpiralSsrNativeServer(): Promise<BenchServer | null> {
+  try {
+    return await startLuxelSpiralBenchServer({
+      ssrBackend: "native",
+      benchFullRender: false,
+      benchNativeLab: true,
+    });
+  } catch {
+    return null;
+  }
 }
 
-/** @deprecated use startLuxelSpiralSsrServer */
-export const startLuxelSpiralSsrTsServer = startLuxelSpiralSsrServer;
+/** @deprecated use startLuxelSpiralSsrNativeServer */
+export const startLuxelSpiralSsrTsServer = startLuxelSpiralSsrNativeServer;
 
 export async function startLuxelCsrServer(): Promise<BenchServer> {
   const repoRoot = getLuxelRepoRoot();

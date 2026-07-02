@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { createLuxelCounterRenderPool } from "@luxel/luxel/bench";
 import {
   startReactSsrWorkerPoolServer,
   startVueSsrWorkerPoolServer,
@@ -6,6 +7,11 @@ import {
   startSvelteSsrWorkerPoolServer,
   startSolidSsrWorkerPoolServer,
 } from "./servers/inline-ssr-pooled.ts";
+import {
+  startLuxelSsrWorkerPoolServer,
+  startLuxelSsrFullWorkerPoolServer,
+} from "./servers/luxel-counter-pooled.ts";
+import { startFastifyHtmlWorkerPoolServer } from "./servers/fastify-html-counter-pooled.ts";
 
 const COUNTER_HEADLINE = "Hello Luxel";
 
@@ -46,4 +52,38 @@ describe("counter render worker pool", () => {
     process.env.BENCH_RENDER_WORKER_COUNT = "2";
     await expectCounterContract(await startSolidSsrWorkerPoolServer());
   }, 120_000);
+
+  test("luxel-ssr-worker-pool serves counter contract", async () => {
+    process.env.BENCH_RENDER_WORKER_COUNT = "2";
+    await expectCounterContract(await startLuxelSsrWorkerPoolServer());
+  }, 180_000);
+
+  test("luxel-ssr-full-worker-pool serves counter contract", async () => {
+    process.env.BENCH_RENDER_WORKER_COUNT = "2";
+    await expectCounterContract(await startLuxelSsrFullWorkerPoolServer());
+  }, 180_000);
+
+  test("fastify-html-worker-pool serves counter contract", async () => {
+    process.env.BENCH_RENDER_WORKER_COUNT = "2";
+    await expectCounterContract(await startFastifyHtmlWorkerPoolServer());
+  }, 60_000);
+
+  test("luxel-ssr-worker-pool parallel render after warmup", async () => {
+    process.env.BENCH_RENDER_WORKER_COUNT = "4";
+    const pool = await createLuxelCounterRenderPool();
+    try {
+      await pool.warmup();
+      const htmls = await Promise.all([
+        pool.run(),
+        pool.run(),
+        pool.run(),
+        pool.run(),
+      ]);
+      for (const html of htmls) {
+        expect(html).toContain(COUNTER_HEADLINE);
+      }
+    } finally {
+      await pool.close();
+    }
+  }, 180_000);
 });

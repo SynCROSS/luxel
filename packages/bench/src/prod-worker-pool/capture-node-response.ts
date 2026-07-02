@@ -40,6 +40,19 @@ export function createCapturingServerResponse(): {
     removeHeader(name: string) {
       delete headers[name.toLowerCase()];
     },
+    appendHeader(name: string, value: string | string[]) {
+      const key = name.toLowerCase();
+      const existing = headers[key];
+      if (existing === undefined) {
+        headers[key] = value;
+        return;
+      }
+      if (Array.isArray(existing)) {
+        headers[key] = Array.isArray(value) ? [...existing, ...value] : [...existing, value];
+        return;
+      }
+      headers[key] = Array.isArray(value) ? [existing, ...value] : [existing, value];
+    },
     writeHead(code: number, reasonOrHeaders?: string | Record<string, string>, headersArg?: Record<string, string>) {
       statusCode = code;
       const hdrs = typeof reasonOrHeaders === "object" ? reasonOrHeaders : headersArg;
