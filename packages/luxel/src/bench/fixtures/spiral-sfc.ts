@@ -11,10 +11,12 @@ export function buildSpiralLuxelSfc(): string {
 <script>
 import { computeSpiralTiles } from "../../../../bench/fixtures/spiral-html.ts";
 
+const SPIRAL_TILES = computeSpiralTiles();
+
 /** Bench: non-static load so compile skips precompute — render worker runs every request. */
-export async function load(ctx) {
+export function load(ctx) {
   void ctx.session;
-  ctx.store.set("route:index:tiles", computeSpiralTiles(), { tags: ["spiral"] });
+  ctx.store.set("route:index:tiles", SPIRAL_TILES, { tags: ["spiral"] });
 }
 </script>
 

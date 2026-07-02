@@ -7,11 +7,28 @@ import { getLuxelPkgSrc } from "../paths.ts";
 import type { BundleBackend } from "../host/backends/types.ts";
 import { pickBundleBackend } from "../build/pick-bundle-backend.ts";
 import { loadLuxelConfig } from "../config/load.ts";
+import { resolveNativeSchemasConfig } from "../config/native-schemas.ts";
+import {
+  assertNativeModeForAppRoot,
+  routeSsrBackendForNativeMode,
+  toManifestNativeDiagnostics,
+} from "../config/native-mode.ts";
+import { detectClientGpuCapabilities } from "../client-gpu/capabilities.ts";
+import { resolveNativeGpuClient, toManifestGpuDiagnostics } from "../config/native-gpu.ts";
+import type { NativeRuntimeKind } from "../config/native-runtime.ts";
 
 export type CompileAppOptions = {
   bundleBackend?: BundleBackend;
   /** Per-route SSR backend overrides (luxel.config `routes[path].ssr` wins when set). */
   routeSsrBackends?: Record<string, "ts" | "native">;
+  /** Separate generated output dir for bench pool artifacts (avoids clobbering dev compile cache). */
+  genRootSuffix?: string;
+  /** Skip compile-time static-load precompute (true per-request SSR for bench parity rows). */
+  benchFullRender?: boolean;
+  /** Native lab WinRK row: per-request native without compile-time precompute. */
+  benchNativeLab?: boolean;
+  /** Override native.runtime resolution (tests/bench). */
+  nativeRuntime?: NativeRuntimeKind | "auto";
 };
 
 export type CompiledApp = {
@@ -33,8 +50,18 @@ export async function compileApp(
   const slug = appDir.replace(/^examples\//, "");
   const appRoot = join(repoRoot, appDir);
   const luxelConfig = await loadLuxelConfig(appRoot);
+  const nativeSchemas = resolveNativeSchemasConfig(luxelConfig.native);
+  const nativeMode = await assertNativeModeForAppRoot(appRoot);
+  const nativeRuntime: NativeRuntimeKind =
+    options?.nativeRuntime && options.nativeRuntime !== "auto"
+      ? options.nativeRuntime
+      : nativeMode.nativeRuntime;
   const routesDir = join(appRoot, luxelConfig.routesDir);
-  const genRoot = join(getLuxelPkgSrc(), ".generated", slug);
+  const genRoot = join(
+    getLuxelPkgSrc(),
+    ".generated",
+    options?.genRootSuffix ? `${slug}-${options.genRootSuffix}` : slug,
+  );
   const discovered = await discoverRouteFiles(routesDir);
 
   const routes: CompiledRoute[] = [];
@@ -50,16 +77,28 @@ export async function compileApp(
         genRoot,
         bundleBackend,
         configClientHydration: luxelConfig.routes?.[route.path]?.client?.hydration,
-        ssrBackend:
-          options?.routeSsrBackends?.[route.path] ??
-          luxelConfig.routes?.[route.path]?.ssr ??
-          "ts",
+        ssrBackend: routeSsrBackendForNativeMode(
+          nativeMode,
+          options?.routeSsrBackends?.[route.path] ?? luxelConfig.routes?.[route.path]?.ssr,
+        ),
+        routeThirdPartySchema: nativeSchemas.thirdPartyEnabled
+          ? luxelConfig.routes?.[route.path]?.thirdPartySchema
+          : undefined,
+        nativeMode: nativeMode.configured,
+        nativeRuntimePreference: luxelConfig.native?.runtime,
+        nativeRuntime,
+        disableStaticPrecompute:
+          (options?.benchFullRender ?? false) || (options?.benchNativeLab ?? false),
       }),
     );
   }
 
   const manifest: Manifest = {
     version: 2,
+    native: toManifestNativeDiagnostics(nativeMode),
+    gpu: toManifestGpuDiagnostics(
+      resolveNativeGpuClient(luxelConfig.native?.gpu, detectClientGpuCapabilities()),
+    ),
     routes: routes.map((r) => r.manifestRoute),
     components: routes.map((r) => r.manifestComponent),
   };
@@ -99,12 +138,18 @@ export async function compileApp(
   return app;
 }
 
-export async function compileCounterApp(repoRoot: string): Promise<CompiledApp> {
-  return compileApp(repoRoot, "examples/counter");
+export async function compileCounterApp(
+  repoRoot: string,
+  options?: CompileAppOptions,
+): Promise<CompiledApp> {
+  return compileApp(repoRoot, "examples/counter", options);
 }
 
-export async function compileNavDemoApp(repoRoot: string): Promise<CompiledApp> {
-  return compileApp(repoRoot, "examples/nav-demo");
+export async function compileNavDemoApp(
+  repoRoot: string,
+  options?: CompileAppOptions,
+): Promise<CompiledApp> {
+  return compileApp(repoRoot, "examples/nav-demo", options);
 }
 
 async function writeClientEntry(genRoot: string, routes: CompiledRoute[]): Promise<void> {

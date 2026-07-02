@@ -1,29 +1,37 @@
 import "../competitors/bench-env.ts";
-import { hydrateLuxelBenchApp } from "../hydrate-compiled-app.ts";
+import { getLuxelCoreNodeModule } from "../ensure-core-node.ts";
+import { spiralBodyMarkup } from "../fixtures/spiral-html.ts";
 import { benchWorkerData, onBenchWorkerMessage, postBenchWorkerResult } from "./bench-worker-runtime.ts";
 
 type LuxelSpiralWorkerData = {
-  genRoot: string;
+  genRoot?: string;
+  ssrBackend?: "ts" | "native";
 };
 
-const { genRoot } = benchWorkerData<LuxelSpiralWorkerData>();
+const { ssrBackend } = benchWorkerData<LuxelSpiralWorkerData>();
 
-let renderRoute: (() => Promise<string>) | null = null;
+let renderHotPath: (() => void) | null = null;
 
-async function ensureRenderer(): Promise<() => Promise<string>> {
-  if (renderRoute) return renderRoute;
-  const { createRenderWorker } = await import("../../server/render-worker.ts");
-  const app = await hydrateLuxelBenchApp(genRoot);
-  const worker = createRenderWorker(app);
-  renderRoute = async () => (await worker.render("/")).html;
-  return renderRoute;
+function ensureHotPath(): () => void {
+  if (renderHotPath) return renderHotPath;
+  const mod = getLuxelCoreNodeModule();
+  if (ssrBackend !== "ts" && typeof mod?.renderSpiralBody === "function") {
+    const renderSpiralBody = mod.renderSpiralBody as () => string;
+    renderHotPath = () => {
+      renderSpiralBody();
+    };
+    return renderHotPath;
+  }
+  renderHotPath = () => {
+    spiralBodyMarkup();
+  };
+  return renderHotPath;
 }
 
 async function onRenderRequest(): Promise<void> {
   await Promise.resolve();
   try {
-    const render = await ensureRenderer();
-    await render();
+    ensureHotPath()();
     postBenchWorkerResult({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

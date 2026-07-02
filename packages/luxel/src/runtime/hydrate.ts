@@ -4,8 +4,11 @@ import { findBoundaryHostElement } from "./boundary-host.ts";
 import {
   isLuxelDataV2,
   projectFromSnapshot,
+  type LuxelDataV2,
+  type LuxelHydrationPayload,
   type TemplateBinding,
 } from "../resource-store/luxel-data.ts";
+import { ingestLuxelDataSidecarText } from "../schema/sidecar-ingest.ts";
 
 export type { BoundaryModule } from "./hydrate-types.ts";
 export type HydrateRouteOptions = {
@@ -18,6 +21,35 @@ export type HydrateRouteOptions = {
   }>;
   modules: Record<string, BoundaryModule>;
 };
+
+function readLuxelDataSidecarElement(root: Document | ParentNode = document): string {
+  const el =
+    "getElementById" in root && typeof root.getElementById === "function"
+      ? root.getElementById("luxel-data")
+      : root.querySelector('[id="luxel-data"]');
+  if (!el) throw new Error("sidecar #luxel-data not found");
+  const text = el.textContent?.trim();
+  if (!text) throw new Error("sidecar #luxel-data empty");
+  return text;
+}
+
+export function readLuxelDataSidecar(
+  hydration: Pick<LuxelHydrationPayload, "bindings" | "thirdPartySchema">,
+  root: Document | ParentNode = document,
+): LuxelDataV2 {
+  return ingestLuxelDataSidecarText(readLuxelDataSidecarElement(root), {
+    bindings: hydration.bindings,
+    thirdPartySchema: hydration.thirdPartySchema,
+  });
+}
+
+/** @deprecated use readLuxelDataSidecar */
+export function readTrustedLuxelDataSidecar(
+  bindings: readonly TemplateBinding[],
+  root: Document | ParentNode = document,
+) {
+  return readLuxelDataSidecar({ bindings }, root);
+}
 
 export function hydrateRoute(options: HydrateRouteOptions): void {
   const mod = options.modules[options.routeId];
@@ -37,15 +69,11 @@ export function hydrateRoute(options: HydrateRouteOptions): void {
 }
 
 export function hydrateFromDocument(modules: Record<string, BoundaryModule>): void {
-  const rawData = readJsonSidecar<unknown>("luxel-data");
-  const hydration = readJsonSidecar<{
-    routeId: string;
-    bindings?: TemplateBinding[];
-    boundaries: HydrateRouteOptions["boundaries"];
-  }>("luxel-hydration");
-
+  const hydration = readJsonSidecar<LuxelHydrationPayload>("luxel-hydration");
+  const rawData = readLuxelDataSidecar(hydration);
+  const bindings = hydration.bindings ?? [];
   const data = isLuxelDataV2(rawData)
-    ? projectFromSnapshot(rawData.resources, hydration.bindings ?? [])
+    ? projectFromSnapshot(rawData.resources, bindings)
     : (rawData as Record<string, unknown>);
 
   hydrateRoute({

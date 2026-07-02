@@ -4,6 +4,7 @@ import { ResourceStore } from "../resource-store/store.ts";
 import type { LuxelDataV2 } from "../resource-store/luxel-data.ts";
 import { LUXEL_DATA_VERSION } from "../resource-store/luxel-data.ts";
 import { streamHtmlDocument } from "../compiler/stream-document.ts";
+import { createRenderdClient, type RenderdClient } from "../renderd/client.ts";
 
 export interface RenderWorker {
   render(path: string): Promise<{ html: string; data: LuxelDataV2 }>;
@@ -17,6 +18,30 @@ export interface RenderWorker {
 export function createRenderWorker(app: AppRuntime): RenderWorker {
   const store = new ResourceStore();
   let activeSession: import("../resource-store/load-context.ts").LoadSession | null = null;
+  let renderdClient: RenderdClient | null = null;
+
+  async function getRenderdClient(): Promise<RenderdClient> {
+    if (!renderdClient) {
+      renderdClient = await createRenderdClient();
+    }
+    return renderdClient;
+  }
+
+  async function renderSpiralViaRenderd(route: AppRoute, data?: LuxelDataV2): Promise<string> {
+    if (!route.spiralRenderd) {
+      throw new Error("renderSpiralViaRenderd requires spiralRenderd metadata");
+    }
+    const client = await getRenderdClient();
+    if (data && Object.keys(data.resources).length > 0) {
+      await client.streamLuxelData(data);
+    }
+    return client.renderSpiralDocument(route.spiralRenderd.routePath, route.spiralRenderd.headStyle);
+  }
+
+  function routeShipsData(path: string): boolean {
+    const manifestRoute = app.manifest.routes.find((route) => route.path === path);
+    return manifestRoute?.shipSidecars?.data === true;
+  }
 
   async function runRoute(route: AppRoute): Promise<{ html: string; data: LuxelDataV2 }> {
     if (route.precomputedHtml && route.precomputedData) {
@@ -26,8 +51,12 @@ export function createRenderWorker(app: AppRuntime): RenderWorker {
     const ctx = createLoadContext(store, activeSession);
     if (route.prefetch) await route.prefetch(ctx);
     await route.load(ctx);
-    const data: LuxelDataV2 = { version: LUXEL_DATA_VERSION, resources: store.snapshot() };
-    const html = route.renderFromStore(store);
+    const data: LuxelDataV2 = routeShipsData(route.path)
+      ? { version: LUXEL_DATA_VERSION, resources: store.snapshot() }
+      : { version: LUXEL_DATA_VERSION, resources: {} };
+    const html = route.spiralRenderd
+      ? await renderSpiralViaRenderd(route, routeShipsData(route.path) ? data : undefined)
+      : route.renderFromStore(store);
     return { html, data };
   }
 
@@ -49,8 +78,13 @@ export function createRenderWorker(app: AppRuntime): RenderWorker {
       const ctx = createLoadContext(store, activeSession);
       if (route.prefetch) await route.prefetch(ctx);
       await route.load(ctx);
-      const data: LuxelDataV2 = { version: LUXEL_DATA_VERSION, resources: store.snapshot() };
-      return { stream: route.renderStreamFromStore(store), data };
+      const data: LuxelDataV2 = routeShipsData(path)
+        ? { version: LUXEL_DATA_VERSION, resources: store.snapshot() }
+        : { version: LUXEL_DATA_VERSION, resources: {} };
+      const stream = route.spiralRenderd
+        ? streamHtmlDocument(await renderSpiralViaRenderd(route, routeShipsData(path) ? data : undefined))
+        : route.renderStreamFromStore(store);
+      return { stream, data };
     },
     async renderIndex() {
       return this.render("/");

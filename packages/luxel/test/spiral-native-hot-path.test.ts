@@ -6,6 +6,7 @@ import { createLoadContext } from "../src/resource-store/load-context.ts";
 import { ResourceStore } from "../src/resource-store/store.ts";
 import { ensureSpiralFixture } from "../src/bench/ensure-spiral-fixture.ts";
 import { buildSpiralLuxelSfc } from "../src/bench/fixtures/spiral-sfc.ts";
+import { getLuxelCoreNodeModule } from "../src/bench/ensure-core-node.ts";
 import { computeSpiralTiles, spiralTileCount } from "../src/bench/fixtures/spiral-html.ts";
 import { getLuxelRepoRoot } from "../src/paths.ts";
 
@@ -15,7 +16,7 @@ const genRoot = join(repoRoot, "packages/luxel/src/.generated/spiral-native-hot-
 describe("spiral native hot path", () => {
   beforeAll(() => ensureCoreNodeBuilt(), 300_000);
 
-  test("compileRoute native uses renderBodyFromIr for spiral tiles", async () => {
+  test("compileRoute native uses renderSpiralBodyFromTiles for spiral tiles", async () => {
     await ensureSpiralFixture(repoRoot);
     const routesDir = join(genRoot, "routes");
     await Bun.write(join(routesDir, "index.luxel"), buildSpiralLuxelSfc());
@@ -37,5 +38,39 @@ describe("spiral native hot path", () => {
     const html = route.renderFromStore(store);
     expect(html.match(/class="tile"/g)?.length).toBe(spiralTileCount());
     expect(html).toContain('id="wrapper"');
+  }, 180_000);
+
+  test("native spiral renderFromStore survives renderBodyFromIr failure", async () => {
+    const mod = getLuxelCoreNodeModule();
+    if (!mod) throw new Error("core-node missing");
+    const previousStrict = process.env.LUXEL_BENCH_STRICT_NATIVE;
+    process.env.LUXEL_BENCH_STRICT_NATIVE = "1";
+    const original = mod.renderBodyFromIr;
+    mod.renderBodyFromIr = () => {
+      throw new Error("IR path blocked");
+    };
+    try {
+      await ensureSpiralFixture(repoRoot);
+      const routesDir = join(genRoot, "routes-strict");
+      await Bun.write(join(routesDir, "index.luxel"), buildSpiralLuxelSfc());
+      const route = await compileRoute(join(routesDir, "index.luxel"), {
+        routeId: "route:index",
+        path: "/",
+        source: "examples/spiral/src/routes/index.luxel",
+        componentId: "sfc:spiral",
+        slug: "index",
+        genRoot,
+        ssrBackend: "native",
+      });
+      const store = new ResourceStore();
+      store.set("route:index:tiles", computeSpiralTiles(), { tags: ["spiral"] });
+      await route.load(createLoadContext(store));
+      const html = route.renderFromStore(store);
+      expect(html.match(/class="tile"/g)?.length).toBe(spiralTileCount());
+    } finally {
+      mod.renderBodyFromIr = original;
+      if (previousStrict === undefined) delete process.env.LUXEL_BENCH_STRICT_NATIVE;
+      else process.env.LUXEL_BENCH_STRICT_NATIVE = previousStrict;
+    }
   }, 180_000);
 });

@@ -21,6 +21,16 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: bun install
       - run: bun run build:core-node
+      - name: Native default enablement gate
+        run: |
+          cd examples/counter
+          set -o pipefail
+          LUXEL_BENCH_SKIP_INP=1 LUXEL_BENCH_SKIP_SPIRAL=1 LUXEL_WEBGPU_SKIP=1 \
+            LUXEL_BENCH_GATE_SSR_FIXTURES=counter \
+            bun ../../packages/luxel/src/cli.ts bench --gate --native-gate 2>&1 | tee /tmp/native-default-gate.log
+          grep -q '"type":"native_default_gate"' /tmp/native-default-gate.log
+          grep -q '"ok":true' /tmp/native-default-gate.log
+          test -f ../../docs/benchmarks/runs/native-default-gate-scorecard.md
       - run: bun test --timeout 30000 packages/luxel/test
         env:
           CI: "1"
@@ -30,6 +40,32 @@ jobs:
       - run: bunx playwright test
         env:
           CI: "1"
+      - run: bun run test:e2e:webgpu
+        env:
+          CI: "1"
+
+  native-default-enablement-full:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: dtolnay/rust-toolchain@stable
+      - run: bun install
+      - run: bun run build:core-node
+      - run: bunx playwright install chromium --with-deps
+      - run: bun run test:e2e:webgpu
+        env:
+          CI: "1"
+      - name: Native default enablement gate (release)
+        run: |
+          cd examples/counter
+          set -o pipefail
+          LUXEL_BENCH_SKIP_SPIRAL=1 \
+            LUXEL_BENCH_GATE_SSR_FIXTURES=counter \
+            bun ../../packages/luxel/src/cli.ts bench --gate --native-gate 2>&1 | tee /tmp/native-default-gate-full.log
+          bun ../../packages/luxel/scripts/verify-native-default-gate.ts /tmp/native-default-gate-full.log
+          test -f ../../docs/benchmarks/runs/native-default-gate-scorecard.md
 
   toolchain-smoke:
     runs-on: ubuntu-latest

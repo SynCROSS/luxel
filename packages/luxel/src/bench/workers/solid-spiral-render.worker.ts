@@ -1,23 +1,28 @@
 import "../competitors/bench-env.ts";
-import { spiralDocumentFromBody } from "../fixtures/spiral-contract.ts";
+import { competitorSource } from "../competitors/sources-path.ts";
+import { importPrecompiledSolidTs } from "../competitors/compile-solid-ts.ts";
 import { onBenchWorkerMessage, postBenchWorkerResult } from "./bench-worker-runtime.ts";
 
-let SpiralApp: (() => unknown) | null = null;
+let spiralApp: (() => unknown) | null = null;
+let renderToStringFn: ((component: () => unknown) => string) | null = null;
 
-async function renderOnce(): Promise<string> {
-  if (!SpiralApp) {
-    const mod = await import("../competitors/sources/spiral/solid.ts");
-    SpiralApp = mod.SpiralApp;
+async function ensureSolidSsr(): Promise<void> {
+  if (!renderToStringFn) {
+    const { renderToString } = await import("solid-js/web");
+    renderToStringFn = renderToString as (component: () => unknown) => string;
   }
-  const { renderToString } = await import("solid-js/web");
-  const body = renderToString(SpiralApp!) as string;
-  return spiralDocumentFromBody(body);
+}
+
+async function renderOnce(): Promise<void> {
+  await ensureSolidSsr();
+  spiralApp ??= await importPrecompiledSolidTs(competitorSource("spiral", "solid.ts"), "spiral-solid");
+  renderToStringFn!(spiralApp);
 }
 
 onBenchWorkerMessage(async () => {
   try {
-    const html = await renderOnce();
-    postBenchWorkerResult({ ok: true, html });
+    await renderOnce();
+    postBenchWorkerResult({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     postBenchWorkerResult({ ok: false, error: message });

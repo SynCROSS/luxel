@@ -8,6 +8,14 @@ export interface SpiralTile {
   y: number
 }
 export declare function renderSpiralRouteFromStore(snapshotJson: string): string
+export declare function renderSpiralBodyFromTiles(tiles: Array<SpiralTile>): string
+export declare function renderSpiralBodyFromCoords(coords: Float64Array): string
+/** Platformatic spiral fixture — compute tiles in Rust and render (no JS object marshalling). */
+export declare function renderSpiralBody(): string
+export declare function renderSpiralBodyChunks(tilesPerChunk: number): Array<string>
+/** Full spiral bench document (body + minimal shell). */
+export declare function renderSpiralDocument(): string
 export declare function renderSpiralRouteFromTiles(tiles: Array<SpiralTile>): string
+export declare function renderCounterBody(message: string): string
 export declare function renderCounterBodyFromStore(snapshotJson: string): string
 export declare function renderBodyFromIr(renderIrJson: string, snapshotJson: string, bindingsJson: string): string

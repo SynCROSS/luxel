@@ -8,14 +8,18 @@
   },
   "dependencies": {
     "@luxel/core-node": "workspace:*",
-    "esbuild": "^0.25.0"
+    "esbuild": "^0.25.0",
+    "flatbuffers": "^25.2.10"
   },
   "exports": {
     ".": "./src/index.ts",
+    "./client-gpu": "./src/client-gpu/index.ts",
+    "./schema": "./src/schema/index.ts",
     "./deploy": "./src/deploy/index.ts",
     "./node": "./src/node/serve.ts",
     "./deno": "./src/deno/serve.ts",
-    "./bench": "./src/bench/fixture-server.ts"
+    "./bench": "./src/bench/fixture-server.ts",
+    "./bench/ssr": "./src/bench/competitors/ssr-render.ts"
   },
   "files": [
     "bin",

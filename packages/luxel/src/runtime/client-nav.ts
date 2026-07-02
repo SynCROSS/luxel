@@ -2,20 +2,10 @@ import { ResourceStore } from "../resource-store/store.ts";
 import {
   isLuxelDataV2,
   projectFromSnapshot,
-  type TemplateBinding,
+  type LuxelHydrationPayload,
 } from "../resource-store/luxel-data.ts";
-import { hydrateRoute, type BoundaryModule } from "./hydrate.ts";
-
-function readSidecarFromDocument<T>(doc: Document, id: string): T {
-  const el = doc.getElementById(id);
-  if (!el?.textContent) throw new Error(`missing sidecar: ${id}`);
-  return JSON.parse(el.textContent) as T;
-}
-
-function seedStoreFromCurrentDocument(store: ResourceStore): void {
-  const raw = readSidecarFromDocument<unknown>(document, "luxel-data");
-  if (isLuxelDataV2(raw)) store.mergeSnapshot(raw.resources);
-}
+import { hydrateRoute, readLuxelDataSidecar, type BoundaryModule } from "./hydrate.ts";
+import { readJsonSidecar } from "./sidecar.ts";
 
 export function setupClientNav(modules: Record<string, BoundaryModule>): void {
   const store = new ResourceStore();
@@ -43,6 +33,12 @@ export function setupClientNav(modules: Record<string, BoundaryModule>): void {
   (globalThis as { __LUXEL_CLIENT_NAV_READY?: boolean }).__LUXEL_CLIENT_NAV_READY = true;
 }
 
+function seedStoreFromCurrentDocument(store: ResourceStore): void {
+  const hydration = readJsonSidecar<LuxelHydrationPayload>("luxel-hydration");
+  const raw = readLuxelDataSidecar(hydration);
+  if (isLuxelDataV2(raw)) store.mergeSnapshot(raw.resources);
+}
+
 async function navigate(
   path: string,
   modules: Record<string, BoundaryModule>,
@@ -63,12 +59,8 @@ async function navigate(
   }
   currentMain.replaceWith(document.importNode(incomingMain, true));
 
-  const rawData = readSidecarFromDocument<unknown>(doc, "luxel-data");
-  const hydration = readSidecarFromDocument<{
-    routeId: string;
-    bindings?: TemplateBinding[];
-    boundaries: Parameters<typeof hydrateRoute>[0]["boundaries"];
-  }>(doc, "luxel-hydration");
+  const hydration = readJsonSidecar<LuxelHydrationPayload>("luxel-hydration", doc);
+  const rawData = readLuxelDataSidecar(hydration, doc);
 
   if (isLuxelDataV2(rawData)) store.mergeSnapshot(rawData.resources);
   const data = isLuxelDataV2(rawData)
