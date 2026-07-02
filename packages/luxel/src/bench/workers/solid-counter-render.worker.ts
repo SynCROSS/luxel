@@ -1,17 +1,22 @@
 import "../competitors/bench-env.ts";
-import { counterDocumentFromBody } from "../fixtures/counter-contract.ts";
+import { competitorSource } from "../competitors/sources-path.ts";
+import { importPrecompiledSolidTs } from "../competitors/compile-solid-ts.ts";
 import { onBenchWorkerMessage, postBenchWorkerResult } from "./bench-worker-runtime.ts";
 
-let CounterApp: (() => unknown) | null = null;
+let counterApp: (() => unknown) | null = null;
+let renderToStringFn: ((component: () => unknown) => string) | null = null;
 
-async function renderOnce(): Promise<string> {
-  if (!CounterApp) {
-    const mod = await import("../competitors/sources/counter/solid.ts");
-    CounterApp = mod.CounterApp;
+async function ensureSolidSsr(): Promise<void> {
+  if (!renderToStringFn) {
+    const { renderToString } = await import("solid-js/web");
+    renderToStringFn = renderToString as (component: () => unknown) => string;
   }
-  const { renderToString } = await import("solid-js/web");
-  const body = renderToString(CounterApp!) as string;
-  return counterDocumentFromBody(body);
+}
+
+async function renderOnce(): Promise<void> {
+  await ensureSolidSsr();
+  counterApp ??= await importPrecompiledSolidTs(competitorSource("counter", "solid.ts"), "counter-solid");
+  renderToStringFn!(counterApp);
 }
 
 onBenchWorkerMessage(async () => {

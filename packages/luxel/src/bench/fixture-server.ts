@@ -14,10 +14,17 @@ export {
 export { buildApp } from "../build/build-app.ts";
 export { getLuxelRepoRoot } from "../paths.ts";
 export {
+  ensureCoreNodeBuilt,
+  isLuxelCoreNodeLoadable,
+  prepareLuxelSpiralNativeBench,
+  prepareLuxelCounterNativeBench,
+} from "./ensure-core-node.ts";
+export {
   benchRenderWorkerCount,
   benchRenderWorkerCountForFixture,
   benchRenderWorkerCountForHardwareConcurrency,
   COUNTER_RENDER_WORKER_CAP,
+  COUNTER_RENDER_WORKER_SEARCH_CAP,
   createBenchRenderWorkerPool,
   type BenchRenderWorkerPool,
   type BenchWorkerPoolFixture,
@@ -28,31 +35,18 @@ export {
   type WorkerDispatchSlot,
   type WorkerPoolJob,
 } from "./competitors/worker-round-robin-dispatch.ts";
+export { createSpiralInlineRenderPool } from "./competitors/spiral-inline-render-pool.ts";
+export { createCounterInlineRenderPool } from "./competitors/counter-inline-render-pool.ts";
+export { createLuxelSpiralRenderPool } from "./luxel-spiral-render-pool.ts";
+export { createLuxelCounterRenderPool } from "./luxel-counter-render-pool.ts";
+export { createLuxelNavDemoRenderPool } from "./luxel-isr-render-pool.ts";
+export { createFastifyHtmlSpiralRenderPool } from "./fastify-html-spiral-render-pool.ts";
+export { createFastifyHtmlCounterRenderPool } from "./fastify-html-counter-render-pool.ts";
+export type { SpiralInlineFramework } from "./competitors/spiral-inline-render.ts";
+export type { CounterInlineFramework } from "./competitors/counter-inline-render-pool.ts";
 export { runBenchRegistry, type BenchJsonLine } from "./registry.ts";
 export { spiralDocumentFromBody, spiralMinimalDocument, spiralTileCount } from "./fixtures/spiral-contract.ts";
 export { computeSpiralTiles, spiralBodyMarkup } from "./fixtures/spiral-html.ts";
-export {
-  renderReactCounterBody,
-  renderReactCounterDocument,
-  renderReactSpiralBody,
-  renderReactSpiralDocument,
-  renderSolidCounterBody,
-  renderSolidCounterDocument,
-  renderSolidSpiralBody,
-  renderSolidSpiralDocument,
-  renderSvelteCounterBody,
-  renderSvelteCounterDocument,
-  renderSvelteSpiralBody,
-  renderSvelteSpiralDocument,
-  renderVueVdomCounterBody,
-  renderVueVdomCounterDocument,
-  renderVueVdomSpiralBody,
-  renderVueVdomSpiralDocument,
-  renderVueVaporCounterBody,
-  renderVueVaporCounterDocument,
-  renderVueVaporSpiralBody,
-  renderVueVaporSpiralDocument,
-} from "./competitors/ssr-render.ts";
 export { competitorSource } from "./competitors/sources-path.ts";
 export { warmupBenchUrl, warmupBenchUrlBurst, warmIsrBenchUrl } from "./competitors/warmup.ts";
 export { benchFetch, waitForServerReady, isBenchConnectError } from "./competitors/bench-fetch.ts";
@@ -62,6 +56,16 @@ export {
   resolveBenchRenderWorkerBackend,
   type BenchRenderWorkerBackend,
 } from "./competitors/bench-render-worker-backend.ts";
+export {
+  createFastifyHtmlCounterServer,
+  createFastifyHtmlSpiralServer,
+  createFastifyStaticCounterServer,
+  createFastifyStaticSpiralServer,
+} from "./competitors/runners.ts";
+export {
+  createStaticHttpCounterServer,
+  createStaticHttpSpiralServer,
+} from "./static-servers.ts";
 
 export type BenchFixtureId = "counter" | "nav-demo" | "spiral" | (string & {});
 

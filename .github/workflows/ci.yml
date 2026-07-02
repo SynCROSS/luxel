@@ -19,8 +19,18 @@ jobs:
         with:
           node-version: "22"
       - uses: dtolnay/rust-toolchain@stable
-      - run: bun install
+      - run: bun install --backend=copyfile
       - run: bun run build:core-node
+      - name: Native default enablement gate
+        run: |
+          cd examples/counter
+          set -o pipefail
+          LUXEL_BENCH_SKIP_INP=1 LUXEL_BENCH_SKIP_SPIRAL=1 LUXEL_WEBGPU_SKIP=1 \
+            LUXEL_BENCH_GATE_SSR_FIXTURES=counter \
+            bun ../../packages/luxel/src/cli.ts bench --gate --native-gate 2>&1 | tee /tmp/native-default-gate.log
+          grep -q '"type":"native_default_gate"' /tmp/native-default-gate.log
+          grep -q '"ok":true' /tmp/native-default-gate.log
+          test -f ../../docs/benchmarks/runs/native-default-gate-scorecard.md
       - run: bun test --timeout 30000 packages/luxel/test
         env:
           CI: "1"
@@ -30,6 +40,32 @@ jobs:
       - run: bunx playwright test
         env:
           CI: "1"
+      - run: bun run test:e2e:webgpu
+        env:
+          CI: "1"
+
+  native-default-enablement-full:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: dtolnay/rust-toolchain@stable
+      - run: bun install --backend=copyfile
+      - run: bun run build:core-node
+      - run: bunx playwright install chromium --with-deps
+      - run: bun run test:e2e:webgpu
+        env:
+          CI: "1"
+      - name: Native default enablement gate (release)
+        run: |
+          cd examples/counter
+          set -o pipefail
+          LUXEL_BENCH_SKIP_SPIRAL=1 \
+            LUXEL_BENCH_GATE_SSR_FIXTURES=counter \
+            bun ../../packages/luxel/src/cli.ts bench --gate --native-gate 2>&1 | tee /tmp/native-default-gate-full.log
+          bun ../../packages/luxel/scripts/verify-native-default-gate.ts /tmp/native-default-gate-full.log
+          test -f ../../docs/benchmarks/runs/native-default-gate-scorecard.md
 
   toolchain-smoke:
     runs-on: ubuntu-latest
@@ -42,7 +78,7 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - run: bun install
+      - run: bun install --backend=copyfile
       - run: cd examples/counter && bun run --cwd ../../packages/luxel build
       - run: cd examples/counter/dist/server && node start-node.mjs &
       - run: sleep 2 && curl -sf http://127.0.0.1:3000/ | head -c 200
@@ -58,7 +94,7 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - run: bun install
+      - run: bun install --backend=copyfile
       - name: build shipped node host bundle (publish path)
         run: node packages/luxel/scripts/build-node-host.mjs
       - name: luxel-node build without Bun bridge
@@ -130,7 +166,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - uses: dtolnay/rust-toolchain@stable
       - name: Install dependencies (bun workspaces)
-        run: bun install
+        run: bun install --backend=copyfile
       - name: Build native addon
         run: bun run build:core-node
       - name: Build counter example

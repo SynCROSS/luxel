@@ -7,7 +7,7 @@
     "binaryName": "luxel-core"
   },
   "scripts": {
-    "build": "napi build --platform --release --cargo-cwd ../../crates/luxel-core"
+    "build": "node scripts/build.mjs"
   },
   "devDependencies": {
     "@napi-rs/cli": "^2.18.4"

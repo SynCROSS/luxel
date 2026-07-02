@@ -7,19 +7,21 @@ function median(samples: number[]): number {
   return sorted.length % 2 === 0 ? (sorted[mid - 1]! + sorted[mid]!) / 2 : sorted[mid]!;
 }
 
+const INP_TIMEOUT_MS = Number(process.env.LUXEL_INP_TIMEOUT_MS ?? (process.env.CI ? 30_000 : 15_000));
+
 async function measureInteraction(
   url: string,
   warmup: (page: Page) => Promise<void>,
   interact: (page: Page) => Promise<void>,
   samples = 7,
 ): Promise<number> {
-  const browser = await chromium.launch({ headless: true, timeout: 15_000 });
+  const browser = await chromium.launch({ headless: true, timeout: INP_TIMEOUT_MS });
   const page = await browser.newPage();
-  page.setDefaultTimeout(15_000);
+  page.setDefaultTimeout(INP_TIMEOUT_MS);
   try {
     const timings: number[] = [];
     for (let i = 0; i < samples; i++) {
-      await page.goto(url, { waitUntil: "domcontentloaded" });
+      await page.goto(url, { waitUntil: "networkidle" });
       await warmup(page);
       const start = performance.now();
       await interact(page);
@@ -40,7 +42,12 @@ export async function runLuxelInpBench(): Promise<
     const counterMs = await measureInteraction(
       counterServer.url,
       async (page) => {
-        await page.locator('[data-luxel-text="count"]').waitFor({ state: "visible" });
+        const count = page.locator('[data-luxel-text="count"]');
+        await count.waitFor({ state: "visible" });
+        await page.waitForFunction(() => {
+          const el = document.querySelector('[data-luxel-text="count"]');
+          return el instanceof HTMLButtonElement && !el.disabled;
+        });
       },
       async (page) => {
         await page.locator('[data-luxel-text="count"]').click();

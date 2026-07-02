@@ -20,6 +20,9 @@
    - Crate: `crates/luxel-core` — SFC/IR shared with TS compiler contract; SSR hot paths (spiral, list routes) in Rust.
    - Bindings: napi-rs (`@luxel/core-node`, Bun-compatible), Deno FFI (`@luxel/core-deno`); WASM for SSR optional if parity proven.
    - Integration: `renderRouteDocumentFromStore` delegates to luxel-core when manifest marks `ssr: "native"`; TS fallback unchanged.
+   - **Hot-path shape (locked):** route-specific native entry points (e.g. `renderCounterBody(count)`, `renderSpiralBody(tiles)`); **reject** generic `renderBodyFromIr` JSON IR interpreter on WinRK hot paths.
+   - **Ship order (locked):** counter native → spiral native inline; **`luxel-renderd` IPC service only after spiral inline native ≥ TS** (`luxel-spiral-ssr`).
+   - **Merge:** default `luxel-ssr` / `luxel-spiral-ssr` adopt native when `luxel-ssr-native` ≥ `luxel-ssr-full`; keep precompute when legal; `luxel-*-native` lab rows stay in geo-mean — see `docs/benchmarks/fairness.md`.
    - **Exit gate:** no regression vs Phase 0 on spiral + counter full-render (`LUXEL_BENCH_FULL_RENDER=1`); spiral geo-mean still ≤ 1.08.
 
 4. **Phase 2 — luxel-core bundler**

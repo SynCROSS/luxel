@@ -5,6 +5,7 @@ import { createListenFetchServer } from "../http/listen-fetch.ts";
 import { createAppFetch } from "../server/handler.ts";
 import { bundleClient } from "../build/client-bundle.ts";
 import { compileApp } from "../route/compile-app.ts";
+import { assertNativeModeForAppRoot } from "../config/native-mode.ts";
 
 export type DevAppOptions = {
   port?: number;
@@ -17,7 +18,9 @@ export async function devApp(
   options: DevAppOptions = {},
 ) {
   const port = options.port ?? Number(process.env.PORT ?? "3000");
-  const routesDir = join(repoRoot, appDir, "src/routes");
+  const appRoot = join(repoRoot, appDir);
+  await assertNativeModeForAppRoot(appRoot);
+  const routesDir = join(appRoot, "src/routes");
 
   async function rebuild() {
     const app = await compileApp(repoRoot, appDir, {

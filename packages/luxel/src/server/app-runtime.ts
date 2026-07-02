@@ -17,6 +17,8 @@ export type AppRoute = {
   /** Set at compile time when `load` is constant-only; skips per-request load + render. */
   precomputedHtml?: string;
   precomputedData?: LuxelDataV2;
+  /** When set, render worker delegates spiral SSR to luxel-renderd. */
+  spiralRenderd?: { routePath: string; headStyle: string };
 };
 
 export type AppRuntime = {
