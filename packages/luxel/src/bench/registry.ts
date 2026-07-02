@@ -213,33 +213,33 @@ export async function* runBenchRegistry(
   }
 
   if (!skipInp) {
-    try {
-      const { runLuxelInpBench } = await import("./inp.ts");
-      for (const row of await runLuxelInpBench()) {
+    const { runLuxelInpBench } = await import("./inp.ts");
+    for (const row of await runLuxelInpBench()) {
+      if ("status" in row) {
         yield {
           fixture: row.fixture,
           framework: "luxel",
           metric: "inp_ms",
-          value: row.inpMs,
-          interaction: row.interaction,
+          status: "pending",
+          reason: row.reason,
         };
+        continue;
       }
       yield {
-        fixture: "counter",
-        framework: "react",
-        metric: "inp_ms",
-        status: "pending",
-        reason: "competitor INP harness not wired",
-      };
-    } catch (err) {
-      yield {
-        fixture: "counter",
+        fixture: row.fixture,
         framework: "luxel",
         metric: "inp_ms",
-        status: "pending",
-        reason: err instanceof Error ? err.message : "inp runner failed",
+        value: row.inpMs,
+        interaction: row.interaction,
       };
     }
+    yield {
+      fixture: "counter",
+      framework: "react",
+      metric: "inp_ms",
+      status: "pending",
+      reason: "competitor INP harness not wired",
+    };
   }
 
   const docsServer = await createTestServerForApp("examples/docs-site");

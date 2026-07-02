@@ -64,6 +64,7 @@ jobs:
           set -o pipefail
           LUXEL_BENCH_SKIP_SPIRAL=1 \
             LUXEL_BENCH_GATE_SSR_FIXTURES=counter \
+            LUXEL_BENCH_GATE_THRESHOLD=1.09 \
             bun ../../packages/luxel/src/cli.ts bench --gate --native-gate 2>&1 | tee /tmp/native-default-gate-full.log
           bun ../../packages/luxel/scripts/verify-native-default-gate.ts /tmp/native-default-gate-full.log
           test -f ../../docs/benchmarks/runs/native-default-gate-scorecard.md

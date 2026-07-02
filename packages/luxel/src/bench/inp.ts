@@ -55,11 +55,14 @@ async function measureInteraction(
   }
 }
 
-export async function runLuxelInpBench(): Promise<
-  Array<{ fixture: string; interaction: string; inpMs: number }>
-> {
+export type InpBenchRow =
+  | { fixture: string; interaction: string; inpMs: number }
+  | { fixture: string; interaction: string; status: "pending"; reason: string };
+
+export async function runLuxelInpBench(): Promise<InpBenchRow[]> {
+  const rows: InpBenchRow[] = [];
+
   const counterServer = await createTestServer(0, { routeSsrBackends: { "/": "ts" } });
-  const navServer = await createNavDemoTestServer();
   try {
     const counterMs = await measureInteraction(
       counterServer.url,
@@ -73,7 +76,20 @@ export async function runLuxelInpBench(): Promise<
       },
       5,
     );
+    rows.push({ fixture: "counter", interaction: "counter_click", inpMs: counterMs });
+  } catch (err) {
+    rows.push({
+      fixture: "counter",
+      interaction: "counter_click",
+      status: "pending",
+      reason: err instanceof Error ? err.message : "counter inp failed",
+    });
+  } finally {
+    counterServer.close();
+  }
 
+  const navServer = await createNavDemoTestServer();
+  try {
     const navMs = await measureInteraction(
       navServer.url,
       async (page) => {
@@ -87,13 +103,17 @@ export async function runLuxelInpBench(): Promise<
       },
       5,
     );
-
-    return [
-      { fixture: "counter", interaction: "counter_click", inpMs: counterMs },
-      { fixture: "nav-demo", interaction: "client_nav_forward", inpMs: navMs },
-    ];
+    rows.push({ fixture: "nav-demo", interaction: "client_nav_forward", inpMs: navMs });
+  } catch (err) {
+    rows.push({
+      fixture: "nav-demo",
+      interaction: "client_nav_forward",
+      status: "pending",
+      reason: err instanceof Error ? err.message : "nav inp failed",
+    });
   } finally {
-    counterServer.close();
     navServer.close();
   }
+
+  return rows;
 }
