@@ -1,34 +1,39 @@
-import {
-  renderReactSpiralDocument,
-  renderVueVdomSpiralDocument,
-  renderVueVaporSpiralDocument,
-  renderSolidSpiralDocument,
-  renderSvelteSpiralDocument,
-} from "@luxel/luxel/bench";
 import { createFetchServer, type BenchServer } from "../http-server.ts";
 
 const HTML_HEADERS = { "content-type": "text/html; charset=utf-8" } as const;
 
-export async function startReactSpiralSsrServer(): Promise<BenchServer> {
+type SsrModule = typeof import("@luxel/luxel/bench/ssr");
+
+/** Lazy — parent import of framework SSR deps breaks Bun render workers in same process. */
+function loadSsr(): Promise<SsrModule> {
+  return import("@luxel/luxel/bench/ssr");
+}
+
+async function startSpiralSsrServer(render: () => Promise<string>): Promise<BenchServer> {
+  await render();
   return createFetchServer(async () => {
-    const html = await renderReactSpiralDocument();
+    const html = await render();
     return new Response(html, { headers: HTML_HEADERS });
   });
 }
 
+export async function startReactSpiralSsrServer(): Promise<BenchServer> {
+  const { renderReactSpiralDocument } = await loadSsr();
+  return startSpiralSsrServer(renderReactSpiralDocument);
+}
+
 export async function startVueSpiralSsrServer(): Promise<BenchServer> {
-  return createFetchServer(async () => {
-    const html = await renderVueVdomSpiralDocument();
-    return new Response(html, { headers: HTML_HEADERS });
-  });
+  const { renderVueVdomSpiralDocument } = await loadSsr();
+  return startSpiralSsrServer(renderVueVdomSpiralDocument);
 }
 
 export async function startVueVaporSpiralSsrServer(): Promise<BenchServer | null> {
   try {
-    return createFetchServer(async () => {
+    const { renderVueVaporSpiralDocument } = await loadSsr();
+    return startSpiralSsrServer(async () => {
       const html = await renderVueVaporSpiralDocument();
       if (!html) throw new Error("vue-vapor spiral render unavailable");
-      return new Response(html, { headers: HTML_HEADERS });
+      return html;
     });
   } catch {
     return null;
@@ -36,15 +41,11 @@ export async function startVueVaporSpiralSsrServer(): Promise<BenchServer | null
 }
 
 export async function startSolidSpiralSsrServer(): Promise<BenchServer> {
-  return createFetchServer(async () => {
-    const html = await renderSolidSpiralDocument();
-    return new Response(html, { headers: HTML_HEADERS });
-  });
+  const { renderSolidSpiralDocument } = await loadSsr();
+  return startSpiralSsrServer(renderSolidSpiralDocument);
 }
 
 export async function startSvelteSpiralSsrServer(): Promise<BenchServer> {
-  return createFetchServer(async () => {
-    const html = await renderSvelteSpiralDocument();
-    return new Response(html, { headers: HTML_HEADERS });
-  });
+  const { renderSvelteSpiralDocument } = await loadSsr();
+  return startSpiralSsrServer(renderSvelteSpiralDocument);
 }

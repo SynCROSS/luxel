@@ -1,18 +1,22 @@
 import { spawn } from "node:child_process";
 import { parseWinrkOutput, type WinrkStats } from "./parse.ts";
 import { resolveWinrk } from "./resolve.ts";
+import { winrkDefaultThreads } from "./hardware-concurrency.ts";
 
 export type WinrkOptions = {
   url: string;
   durationSec?: number;
   connections?: number;
   threads?: number;
+  _retriedEmpty?: boolean;
 };
 
 export const WINRK_DEFAULTS = {
   durationSec: Number(process.env.WINRK_DURATION ?? "15"),
   connections: Number(process.env.WINRK_CONNECTIONS ?? "400"),
-  threads: Number(process.env.WINRK_THREADS ?? "8"),
+  get threads() {
+    return winrkDefaultThreads();
+  },
 };
 
 /** Async spawn — spawnSync blocks Bun event loop and starves the in-process HTTP server. */
@@ -48,5 +52,17 @@ export async function runWinrk(options: WinrkOptions): Promise<WinrkStats> {
   if (status !== 0) {
     throw new Error(`winrk failed (exit ${status}):\n${combined}`);
   }
-  return parseWinrkOutput(combined);
+  try {
+    return parseWinrkOutput(combined);
+  } catch (err) {
+    const duration = Number(options.durationSec ?? WINRK_DEFAULTS.durationSec);
+    if (duration < 3 && /missing rps|empty result/i.test(String(err))) {
+      return runWinrk({ ...options, durationSec: 3 });
+    }
+    if (!options._retriedEmpty && /missing rps|empty result/i.test(String(err))) {
+      await new Promise((resolve) => setTimeout(resolve, 2_000));
+      return runWinrk({ ...options, _retriedEmpty: true });
+    }
+    throw err;
+  }
 }

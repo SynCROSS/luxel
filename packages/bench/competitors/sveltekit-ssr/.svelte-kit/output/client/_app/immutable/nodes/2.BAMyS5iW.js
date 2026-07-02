@@ -1,0 +1,1 @@
+import{a as n,f as r}from"../chunks/BV-vrcpb.js";import{f as s,g as i,i as l,j as c}from"../chunks/CWWpg4CV.js";var f=r('<h1>Hello Luxel</h1> <section><button type="button" data-luxel-text="count"></button></section>',1);function u(a){var t=f(),o=s(i(t),2),e=l(o);e.textContent="0",c(o),n(a,t)}export{u as component};

@@ -3,6 +3,7 @@ import { Worker as NodeWorker } from "node:worker_threads";
 import { fileURLToPath } from "node:url";
 import type { SerializedNodeRequest } from "./serialize-node-request.ts";
 import type { CapturedNodeResponse } from "./capture-node-response.ts";
+import { captureProdHandlerRequest } from "./capture-prod-handler.ts";
 import {
   createRoundRobinDispatcher,
   rejectAllPending,
@@ -78,6 +79,15 @@ function createHandlerWorkerSlot(workerUrl: URL, bootstrapPath: string, workerIn
     rejectAllPending(slot.pending as WorkerPoolJob<CapturedNodeResponse>[], err);
   });
   return slot;
+}
+
+export function createInProcessNodeHandlerPool(bootstrapPath: string): NodeHandlerWorkerPool {
+  return {
+    run(req) {
+      return captureProdHandlerRequest(bootstrapPath, req);
+    },
+    async close() {},
+  };
 }
 
 export function createNodeHandlerWorkerPool(

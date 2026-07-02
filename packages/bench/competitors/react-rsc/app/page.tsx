@@ -1,4 +1,12 @@
-export const dynamic = "force-dynamic";
+import { CounterButton } from "./CounterButton";
+export const dynamic = "force-static";
 export default function Page() {
-  return (<><h1>Hello Luxel</h1><section><button type="button" data-luxel-text="count">0</button></section></>);
+  return (
+    <>
+      <h1>Hello Luxel</h1>
+      <section>
+        <CounterButton />
+      </section>
+    </>
+  );
 }

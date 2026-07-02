@@ -9,10 +9,11 @@ import type { WinrkStats } from "./parse.ts";
 import type { BenchServer } from "./http-server.ts";
 import {
   benchLatencyConcurrency,
-  benchLatencySampleCount,
+  benchLatencySampleCountForFixture,
   prepareForPostWinrkLatencySample,
   prepareForWinrkMeasurement,
   usesWinrkLatencyStatsOnly,
+  winrkPreMeasurementCooldownMsForFixture,
 } from "./bench-latency-config.ts";
 import {
   formatResponseBytesLabel,
@@ -202,7 +203,6 @@ export const WINRK_SPIRAL_STACKS: StackRow[] = [
   stackRow({ id: "luxel-spiral-ssr-worker-pool", framework: "luxel", mode: "ssr", start: startLuxelSpiralSsrWorkerPoolServer }),
   stackRow({ id: "luxel-spiral-ssr", framework: "luxel", mode: "ssr", start: startLuxelSpiralSsrServer }),
   stackRow({ id: "luxel-spiral-ssr-full", framework: "luxel", mode: "ssr", start: startLuxelSpiralSsrFullServer }),
-  stackRow({ id: "luxel-spiral-ssr-native", framework: "luxel", mode: "ssr", start: startLuxelSpiralSsrNativeServer }),
   stackRow({ id: "react-spiral-ssr-worker-pool", framework: "react", mode: "ssr", version: ">=19", start: startReactSpiralSsrWorkerPoolServer }),
   stackRow({ id: "react-spiral-ssr", framework: "react", mode: "ssr", version: ">=19", start: startReactSpiralSsrServer }),
   stackRow({ id: "vue-vdom-spiral-ssr-worker-pool", framework: "vue-vdom", mode: "ssr", version: ">=3.5", start: startVueSpiralSsrWorkerPoolServer }),
@@ -213,6 +213,13 @@ export const WINRK_SPIRAL_STACKS: StackRow[] = [
   stackRow({ id: "solid-spiral-ssr", framework: "solid", mode: "ssr", version: ">=1.9", start: startSolidSpiralSsrServer }),
   stackRow({ id: "svelte-spiral-ssr-worker-pool", framework: "svelte", mode: "ssr", version: ">=5.56", start: startSvelteSpiralSsrWorkerPoolServer }),
   stackRow({ id: "svelte-spiral-ssr", framework: "svelte", mode: "ssr", version: ">=5.56", start: startSvelteSpiralSsrServer }),
+  stackRow({
+    id: "luxel-spiral-ssr-native",
+    framework: "luxel",
+    mode: "ssr",
+    start: startLuxelSpiralSsrNativeServer,
+    pendingReason: "@luxel/core-node not loadable (run bench:ensure-core-node)",
+  }),
 ];
 
 /** @deprecated use WINRK_COUNTER_STACKS */
@@ -314,12 +321,12 @@ function isRetriableBenchError(reason: string): boolean {
   );
 }
 
-async function measureWinrk(url: string): Promise<WinrkStats> {
+async function measureWinrk(url: string, fixture: WinrkFixtureId): Promise<WinrkStats> {
   const winrkAttempts = benchWinrkMeasurementRetryAttempts();
   let loadTester: BenchLoadTester | undefined;
   let winrk: WinrkStats | null = null;
   for (let winrkAttempt = 1; winrkAttempt <= winrkAttempts; winrkAttempt++) {
-    await prepareForWinrkMeasurement(url);
+    await prepareForWinrkMeasurement(url, winrkPreMeasurementCooldownMsForFixture(fixture));
     winrk = await runBenchLoadTest({
       url,
       durationSec: benchWinrkDurationSec(),
@@ -353,6 +360,16 @@ function latencyFromWinrk(winrk: WinrkStats) {
   };
 }
 
+function fixtureForStackRow(row: StackRow): WinrkFixtureId {
+  return row.id.includes("spiral") ? "spiral" : "counter";
+}
+
+function benchWarmupRequestsForFixture(fixture: WinrkFixtureId): number | undefined {
+  const fromEnv = process.env.BENCH_WARMUP_REQUESTS;
+  if (fromEnv !== undefined && fromEnv !== "") return Number(fromEnv);
+  return fixture === "spiral" ? 50 : undefined;
+}
+
 async function runWinrkStackOnce(row: StackRow): Promise<WinrkBenchResult> {
   let server: BenchServer | null = null;
   const meta = stackResultMeta(row);
@@ -369,16 +386,18 @@ async function runWinrkStackOnce(row: StackRow): Promise<WinrkBenchResult> {
     if (row.mode === "isr") {
       await warmIsrBenchUrl(server.url);
     } else if (!row.id.endsWith("-worker-pool")) {
-      await warmupBenchUrl(server.url);
+      const warmupRequests = benchWarmupRequestsForFixture(fixtureForStackRow(row));
+      await warmupBenchUrl(server.url, warmupRequests);
     }
+    const fixture = fixtureForStackRow(row);
     const { result: winrk, resources } = await measureWithResourceSampling(() =>
-      measureWinrk(server!.url),
+      measureWinrk(server!.url, fixture),
     );
     const responseBytes = await measureResponseBytes(server.url);
     const responseBytesLabel = formatResponseBytesLabel(responseBytes);
 
     const isWorkerPool = row.id.endsWith("-worker-pool");
-    const sampleCount = benchLatencySampleCount();
+    const sampleCount = benchLatencySampleCountForFixture(fixture);
     const runPostWinrkSample = !isWorkerPool && !usesWinrkLatencyStatsOnly(sampleCount);
 
     let latencySample: LatencySampleSummary | undefined;
