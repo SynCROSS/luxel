@@ -37,4 +37,9 @@ describe("webgpu e2e preflight", () => {
     process.env.LUXEL_WEBGPU_SKIP = "1";
     expect(webgpuE2eSkipReason()).toBe("LUXEL_WEBGPU_SKIP=1");
   });
+
+  test("preflight pass marker -> no skip reason", () => {
+    writeFileSync(WEBGPU_E2E_PREFLIGHT_PATH, JSON.stringify({ skip: false }));
+    expect(webgpuE2eSkipReason()).toBeNull();
+  });
 });

@@ -17,16 +17,30 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   const channel = process.env.PLAYWRIGHT_CHROMIUM_CHANNEL ?? "chromium";
   const headless = process.env.LUXEL_WEBGPU_HEADED !== "1";
 
+  let browser;
   try {
-    const browser = await chromium.launch({
+    browser = await chromium.launch({
       channel,
       headless,
       timeout: 30_000,
     });
-    await browser.close();
+    const page = await browser.newPage();
+    const adapterOk = await page.evaluate(async () => {
+      const gpu = (navigator as Navigator & { gpu?: GPU }).gpu;
+      if (!gpu) return false;
+      const adapter = await gpu.requestAdapter();
+      return adapter !== null;
+    });
+    await page.close();
+    if (!adapterOk) {
+      writePreflight({ skip: true, reason: "WebGPU adapter unavailable" });
+      return;
+    }
     writePreflight({ skip: false });
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     writePreflight({ skip: true, reason });
+  } finally {
+    await browser?.close();
   }
 }

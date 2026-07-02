@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import * as esbuild from "esbuild";
@@ -12,26 +12,28 @@ export function precompiledReactArtifactPath(cacheKey: string): string {
   return join(getLuxelPkgSrc(), ".bench", "competitors", "react", `${cacheKey}.mjs`);
 }
 
-/** Parent-once esbuild — no react import in parent (keeps worker-pool parent env clean). */
+/** Parent-once esbuild — external react so renderToString shares one runtime (node host bench). */
 export async function compileReactTsxForSsr(
   absolutePath: string,
   cacheKey: string,
 ): Promise<void> {
-  const source = await readFile(absolutePath, "utf8");
-  const compiled = await esbuild.transform(`import { createElement, Fragment } from "react";\n${source}`, {
-    loader: "tsx",
-    format: "esm",
-    platform: "neutral",
-    jsx: "transform",
-    jsxDev: false,
-    jsxFactory: "createElement",
-    jsxFragment: "Fragment",
-    define: { "process.env.NODE_ENV": '"production"' },
-  });
-
   const dir = join(getLuxelPkgSrc(), ".bench", "competitors", "react");
   await mkdir(dir, { recursive: true });
-  await writeFile(precompiledReactArtifactPath(cacheKey), compiled.code, "utf8");
+  const built = await esbuild.build({
+    entryPoints: [absolutePath],
+    bundle: true,
+    format: "esm",
+    platform: "node",
+    outfile: precompiledReactArtifactPath(cacheKey),
+    jsx: "automatic",
+    jsxImportSource: "react",
+    external: ["react", "react-dom", "react-dom/server"],
+    logLevel: "silent",
+    define: { "process.env.NODE_ENV": '"production"' },
+  });
+  if (built.errors.length > 0) {
+    throw new Error(built.errors.map((error) => error.text).join("\n"));
+  }
 }
 
 /** Import parent-precompiled artifact in worker — workers must not re-esbuild (parallel write races). */

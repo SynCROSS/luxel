@@ -19,7 +19,7 @@ jobs:
         with:
           node-version: "22"
       - uses: dtolnay/rust-toolchain@stable
-      - run: bun install
+      - run: bun install --backend=copyfile
       - run: bun run build:core-node
       - name: Native default enablement gate
         run: |
@@ -51,7 +51,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
       - uses: dtolnay/rust-toolchain@stable
-      - run: bun install
+      - run: bun install --backend=copyfile
       - run: bun run build:core-node
       - run: bunx playwright install chromium --with-deps
       - run: bun run test:e2e:webgpu
@@ -78,7 +78,7 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - run: bun install
+      - run: bun install --backend=copyfile
       - run: cd examples/counter && bun run --cwd ../../packages/luxel build
       - run: cd examples/counter/dist/server && node start-node.mjs &
       - run: sleep 2 && curl -sf http://127.0.0.1:3000/ | head -c 200
@@ -94,7 +94,7 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - run: bun install
+      - run: bun install --backend=copyfile
       - name: build shipped node host bundle (publish path)
         run: node packages/luxel/scripts/build-node-host.mjs
       - name: luxel-node build without Bun bridge

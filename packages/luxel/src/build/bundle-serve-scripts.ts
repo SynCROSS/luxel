@@ -18,6 +18,7 @@ export async function bundleServeScripts(
     root: pkgSrc,
     platform: "node",
     write: false,
+    packages: "external",
   });
   await writeFile(join(serverDir, "start-node.mjs"), nodeOutput.text, "utf8");
 
@@ -25,6 +26,7 @@ export async function bundleServeScripts(
     root: pkgSrc,
     platform: "node",
     write: false,
+    packages: "external",
   });
   await writeFile(join(serverDir, "start-deno.mjs"), denoOutput.text, "utf8");
 }
