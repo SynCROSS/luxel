@@ -37,4 +37,18 @@ describe("spiral tier-2 bench fixture", () => {
     const tileMatches = html.match(/class="tile"/g);
     expect(tileMatches?.length).toBe(spiralTileCount());
   }, 120_000);
+
+  test("stable spiral render reuses encoded response bytes", async () => {
+    const appDir = await ensureSpiralFixture(repoRoot);
+    const app = await compileApp(repoRoot, appDir, {
+      routeSsrBackends: { "/": "ts" },
+    });
+    const worker = createRenderWorker(app);
+
+    const first = await worker.renderBytes("/");
+    const second = await worker.renderBytes("/");
+
+    expect(second.body).toBe(first.body);
+    expect(second.body.byteLength).toBeGreaterThan(100_000);
+  }, 120_000);
 });

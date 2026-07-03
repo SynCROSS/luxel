@@ -35,7 +35,7 @@ export function createAppServerFetch(options: AppServerOptions): (req: Request) 
   return wrapCompress(fetch, compress);
 }
 
-function buildPrecomputedHtmlBodies(app: AppRuntime): Map<string, Uint8Array> {
+export function buildPrecomputedHtmlBodies(app: AppRuntime): Map<string, Uint8Array> {
   const out = new Map<string, Uint8Array>();
   const enc = new TextEncoder();
   for (const manifestRoute of app.manifest.routes) {
@@ -49,6 +49,16 @@ function buildPrecomputedHtmlBodies(app: AppRuntime): Map<string, Uint8Array> {
 export function createAppFetch(options: AppServerOptions): (req: Request) => Promise<Response> {
   const worker = (options.createRenderWorker ?? createRenderWorker)(options.app);
   const precomputedHtml = buildPrecomputedHtmlBodies(options.app);
+  const precomputedHtmlHeaders = new Map<string, Readonly<Record<string, string>>>();
+  for (const [path, body] of precomputedHtml) {
+    precomputedHtmlHeaders.set(
+      path,
+      Object.freeze({
+        "content-type": "text/html; charset=utf-8",
+        "content-length": String(body.byteLength),
+      }),
+    );
+  }
   const htmlCache = options.htmlCache
     ? new TieredHtmlCacheAdapter(options.htmlCache)
     : undefined;
@@ -57,6 +67,18 @@ export function createAppFetch(options: AppServerOptions): (req: Request) => Pro
   return async (req) => {
     const url = new URL(req.url);
     const path = normalizePath(url.pathname);
+    if (
+      !fetchOptions.sessionStore &&
+      (req.method === "GET" || req.method === "HEAD") &&
+      !url.searchParams.has("stream")
+    ) {
+      const prebuilt = precomputedHtml.get(path);
+      if (prebuilt) {
+        return new Response(req.method === "HEAD" ? null : prebuilt, {
+          headers: precomputedHtmlHeaders.get(path),
+        });
+      }
+    }
     const route = fetchOptions.app.getRoute(path);
     const session = await resolveSession(req, fetchOptions.sessionStore);
     worker.setSession(session);
