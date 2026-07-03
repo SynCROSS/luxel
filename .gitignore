@@ -22,6 +22,10 @@ packages/bench/competitors/node_modules/
 packages/bench/competitors/**/.next/
 packages/bench/competitors/**/.output/
 packages/bench/competitors/**/.vinxi/
+packages/bench/competitors/**/.svelte-kit/
+packages/bench/competitors/*/build/
+packages/bench/competitors/**/.svelte-build.lock
+*.tsbuildinfo
 packages/luxel/src/.bench/
 packages/luxel/test/.tmp-*/
 .tmp-*.md
