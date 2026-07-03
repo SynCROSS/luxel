@@ -4,7 +4,7 @@ import {
   waitForServerReady,
   isBenchConnectError,
 } from "@luxel/luxel/bench";
-import { runBenchLoadTest, canFallbackToBombardier, type BenchLoadTester } from "./load-test.ts";
+import { runBenchLoadTest, nextFallbackLoadTester, resolveBenchLoadTester, type BenchLoadTester } from "./load-test.ts";
 import type { WinrkStats } from "./parse.ts";
 import type { BenchServer } from "./http-server.ts";
 import {
@@ -317,7 +317,9 @@ function benchStackCooldownMs(): number {
 function isRetriableBenchError(reason: string): boolean {
   return (
     isBenchConnectError(new Error(reason)) ||
-    /winrk failed|missing rps|empty result|winrk reported.*errors after/i.test(reason)
+    /(?:winrk|wrk|oha|bombardier) failed|missing rps|empty result|(?:winrk|load test) reported.*errors after/i.test(
+      reason,
+    )
   );
 }
 
@@ -333,8 +335,9 @@ async function measureWinrk(url: string, fixture: WinrkFixtureId): Promise<Winrk
       tester: loadTester,
     });
     if (!winrkMeasurementHasErrors(winrk)) return winrk;
-    if (canFallbackToBombardier(loadTester ?? "winrk")) {
-      loadTester = "bombardier";
+    const fallback = nextFallbackLoadTester(loadTester ?? resolveBenchLoadTester());
+    if (fallback) {
+      loadTester = fallback;
       continue;
     }
     if (!shouldRetryWinrkMeasurement(winrkAttempt, winrkAttempts)) break;

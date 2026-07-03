@@ -65,7 +65,7 @@ function toMarkdown(
     "",
     "## Notes",
     "",
-    "- Deployed HTTP servers; load test via winrk or bombardier (`BENCH_LOAD_TESTER`).",
+    "- Deployed HTTP servers; load test via oha, bombardier, wrk, or winrk (`BENCH_LOAD_TESTER`).",
     "- RPS from load tester; p95/p99 from post-load latency sample (after cooldown; platform default sample count).",
     "- CPU/memory sampled during load-test window; response bytes = HTML body weight.",
     "- CSR rows serve production-built static `index.html` + client bundle.",
