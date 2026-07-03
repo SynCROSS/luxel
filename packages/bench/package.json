@@ -28,7 +28,12 @@
     "bench": "bun run src/run.ts",
     "bench:winrk": "bun run src/winrk-run.ts",
     "bench:winrk:serve": "bun run src/winrk/serve-stack.ts",
-    "bench:competitors:build": "bun run --cwd competitors build",
-    "bench:winrk:full": "bun run bench:competitors:build && bun run bench:winrk"
+    "bench:winrk:merge": "bun run src/winrk-merge.ts",
+    "bench:winrk:repro-all": "bun run src/winrk-repro-all.ts",
+    "bench:cleanup-orphans": "bun run src/winrk/bench-cleanup-orphans-cli.ts",
+    "bench:competitors:build": "bun run bench:cleanup-orphans && bun run --cwd competitors build",
+    "bench:winrk:full": "bun run bench:competitors:build && bun run bench:ensure-core-node && bun run bench:winrk",
+    "bench:repro": "bun run bench:competitors:build && bun run bench:ensure-core-node && bun run bench:winrk:repro-all",
+    "bench:ensure-core-node": "bun -e \"import { ensureCoreNodeBuilt } from '@luxel/luxel/bench'; await ensureCoreNodeBuilt();\""
   }
 }

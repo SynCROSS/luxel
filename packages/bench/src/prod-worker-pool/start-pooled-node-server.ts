@@ -1,11 +1,13 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { serializeNodeRequest } from "./serialize-node-request.ts";
-import { createNodeHandlerWorkerPool } from "./create-node-handler-pool.ts";
+import { createNodeHandlerWorkerPool, createInProcessNodeHandlerPool } from "./create-node-handler-pool.ts";
 
 export type PooledNodeServerOptions = {
   bootstrapPath: string;
   /** Shared ISR HTML cache in parent — one entry per pathname. */
   isrCacheMs?: number;
+  /** Nitro/SolidStart: worker_threads init hangs — run handler in parent. */
+  inProcess?: boolean;
 };
 
 function writeCaptured(res: ServerResponse, captured: {
@@ -30,7 +32,9 @@ function writeCaptured(res: ServerResponse, captured: {
 }
 
 export async function startPooledNodeBenchServer(options: PooledNodeServerOptions) {
-  const pool = createNodeHandlerWorkerPool(options.bootstrapPath);
+  const pool = options.inProcess
+    ? createInProcessNodeHandlerPool(options.bootstrapPath)
+    : createNodeHandlerWorkerPool(options.bootstrapPath);
   const isrCache = options.isrCacheMs
     ? new Map<string, { body: Buffer; headers: Record<string, string | string[] | undefined>; at: number }>()
     : null;

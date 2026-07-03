@@ -13,6 +13,10 @@ import {
   evaluateWinrkReproGate,
   formatWinrkReproGateFailures,
 } from "./winrk/repro-gate.ts";
+import {
+  evaluateWinrkGeoGate,
+  formatWinrkGeoGateResult,
+} from "./winrk/winrk-geo-gate.ts";
 import { resolveWinrkFixture } from "./winrk/resolve-winrk-fixture.ts";
 
 async function main() {
@@ -73,6 +77,15 @@ async function main() {
   if (!gate.ok) {
     console.error(`repro gate failed (${fixture}):\n${formatWinrkReproGateFailures(gate.failures)}`);
     process.exit(1);
+  }
+
+  if (process.env.BENCH_GEO_GATE === "1") {
+    const geoGate = evaluateWinrkGeoGate(fixture, results);
+    if (!geoGate.ok) {
+      console.error(`geo gate failed:\n${formatWinrkGeoGateResult(geoGate)}`);
+      process.exit(1);
+    }
+    console.error(`geo gate passed:\n${formatWinrkGeoGateResult(geoGate)}`);
   }
 }
 

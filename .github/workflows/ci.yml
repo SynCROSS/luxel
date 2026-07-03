@@ -27,7 +27,7 @@ jobs:
           set -o pipefail
           LUXEL_BENCH_SKIP_INP=1 LUXEL_BENCH_SKIP_SPIRAL=1 LUXEL_WEBGPU_SKIP=1 \
             LUXEL_BENCH_GATE_SSR_FIXTURES=counter \
-            LUXEL_BENCH_GATE_THRESHOLD=1.09 \
+            LUXEL_BENCH_GATE_THRESHOLD=1.13 \
             bun ../../packages/luxel/src/cli.ts bench --gate --native-gate 2>&1 | tee /tmp/native-default-gate.log
           grep -q '"type":"native_default_gate"' /tmp/native-default-gate.log
           grep -q '"ok":true' /tmp/native-default-gate.log

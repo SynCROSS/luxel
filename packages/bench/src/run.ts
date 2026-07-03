@@ -1,3 +1,4 @@
+import "@luxel/luxel/bench";
 import { runBenchRegistry } from "@luxel/luxel";
 
 for await (const line of runBenchRegistry()) {

@@ -2,6 +2,19 @@
 
 [winrk](https://github.com/fomalhaut88/winrk) = wrk-like HTTP load tool for Windows.
 
+## Load testers
+
+Harness supports **oha**, **bombardier**, **wrk**, and **winrk** (`BENCH_LOAD_TESTER`).
+
+| Tool | Command shape | Notes |
+|------|---------------|-------|
+| oha (default when on PATH) | `oha --no-tui -z 15s -c 400 <url>` | Set `OHA` for custom path |
+| bombardier | `bombardier -c 400 -d 15s -l <url>/ -p r` | Set `BOMBARDIER` for custom path |
+| wrk | `wrk -t8 -c400 -d15s <url>` | Unix-friendly; set `WRK` |
+| winrk | `winrk -t8 -c400 -d15 <url>` | Windows wrk-like; set `WINRK` |
+
+**Auto chain:** oha → bombardier → wrk → winrk. On errors, retries next tool in chain.
+
 ## winrk flags
 
 ```text

@@ -1,18 +1,19 @@
 {
-  "../../../../node_modules/.pnpm/@sveltejs+kit@2.63.0_@svelt_7d52824ba3bece217070bce1b3ce9ca5/node_modules/@sveltejs/kit/src/runtime/app/server/remote/index.js": {
+  "../node_modules/@sveltejs/kit/src/runtime/app/server/remote/index.js": {
     "file": "remote-entry.js",
     "name": "remote-entry",
-    "src": "../../../../node_modules/.pnpm/@sveltejs+kit@2.63.0_@svelt_7d52824ba3bece217070bce1b3ce9ca5/node_modules/@sveltejs/kit/src/runtime/app/server/remote/index.js",
+    "src": "../node_modules/@sveltejs/kit/src/runtime/app/server/remote/index.js",
     "isEntry": true,
     "imports": [
       "_utils.js",
+      "_render-context.js",
       "_internal.js"
     ]
   },
-  "../../../../node_modules/.pnpm/@sveltejs+kit@2.63.0_@svelt_7d52824ba3bece217070bce1b3ce9ca5/node_modules/@sveltejs/kit/src/runtime/components/svelte-5/error.svelte": {
+  "../node_modules/@sveltejs/kit/src/runtime/components/svelte-5/error.svelte": {
     "file": "entries/fallbacks/error.svelte.js",
     "name": "entries/fallbacks/error.svelte",
-    "src": "../../../../node_modules/.pnpm/@sveltejs+kit@2.63.0_@svelt_7d52824ba3bece217070bce1b3ce9ca5/node_modules/@sveltejs/kit/src/runtime/components/svelte-5/error.svelte",
+    "src": "../node_modules/@sveltejs/kit/src/runtime/components/svelte-5/error.svelte",
     "isEntry": true,
     "imports": [
       "_root.js",
@@ -20,19 +21,20 @@
       "_utils2.js"
     ]
   },
-  "../../../../node_modules/.pnpm/@sveltejs+kit@2.63.0_@svelt_7d52824ba3bece217070bce1b3ce9ca5/node_modules/@sveltejs/kit/src/runtime/components/svelte-5/layout.svelte": {
+  "../node_modules/@sveltejs/kit/src/runtime/components/svelte-5/layout.svelte": {
     "file": "entries/fallbacks/layout.svelte.js",
     "name": "entries/fallbacks/layout.svelte",
-    "src": "../../../../node_modules/.pnpm/@sveltejs+kit@2.63.0_@svelt_7d52824ba3bece217070bce1b3ce9ca5/node_modules/@sveltejs/kit/src/runtime/components/svelte-5/layout.svelte",
+    "src": "../node_modules/@sveltejs/kit/src/runtime/components/svelte-5/layout.svelte",
     "isEntry": true
   },
-  "../../../../node_modules/.pnpm/@sveltejs+kit@2.63.0_@svelt_7d52824ba3bece217070bce1b3ce9ca5/node_modules/@sveltejs/kit/src/runtime/server/index.js": {
+  "../node_modules/@sveltejs/kit/src/runtime/server/index.js": {
     "file": "index.js",
     "name": "index",
-    "src": "../../../../node_modules/.pnpm/@sveltejs+kit@2.63.0_@svelt_7d52824ba3bece217070bce1b3ce9ca5/node_modules/@sveltejs/kit/src/runtime/server/index.js",
+    "src": "../node_modules/@sveltejs/kit/src/runtime/server/index.js",
     "isEntry": true,
     "imports": [
       "_utils.js",
+      "_render-context.js",
       "_internal.js",
       "_exports.js",
       "_utils2.js",

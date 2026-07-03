@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { SOLIDSTART_POOL_BOOTSTRAP } from "./shared.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../solidstart-ssr");
 await mkdir(join(root, "src/routes"), { recursive: true });
@@ -95,15 +96,19 @@ export default createHandler(() => <StartServer document={Document} />);`,
 );
 await writeFile(
   join(root, "src/routes/index.tsx"),
-  `export default function Home() {
+  `import { createSignal } from "solid-js";
+
+export default function Home() {
+  const [count] = createSignal(0);
   return (
     <>
       <h1>Hello Luxel</h1>
-      <section><button type="button" data-luxel-text="count">0</button></section>
+      <section><button type="button" data-luxel-text="count">{count()}</button></section>
     </>
   );
 }`,
 );
+await writeFile(join(root, ".bench-pool-bootstrap.mjs"), SOLIDSTART_POOL_BOOTSTRAP);
 await writeFile(
   join(root, ".bench-server.mjs"),
   `import { createServer } from "node:http";
