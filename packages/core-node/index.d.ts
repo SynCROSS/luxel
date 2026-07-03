@@ -18,4 +18,15 @@ export declare function renderSpiralDocument(): string
 export declare function renderSpiralRouteFromTiles(tiles: Array<SpiralTile>): string
 export declare function renderCounterBody(message: string): string
 export declare function renderCounterBodyFromStore(snapshotJson: string): string
+/** Full counter SSR document (body + luxel sidecars + client entry). */
+export declare function renderCounterDocument(message: string): string
+export declare function renderCounterDocumentFromStore(
+  snapshotJson: string,
+  routePath: string,
+  headStyle: string,
+  hydrationScript: string,
+  shipData: boolean,
+  shipHydration: boolean,
+  shipClient: boolean,
+): string
 export declare function renderBodyFromIr(renderIrJson: string, snapshotJson: string, bindingsJson: string): string

@@ -30,7 +30,11 @@ import {
 } from "./codegen-route-runtime.ts";
 import { assertNativeSsrEligible, nativeSsrRouteKind, type NativeSsrRouteKind } from "./spiral-native.ts";
 import { renderNativeDocumentFromStore, renderSpiralNativeBody } from "../luxel-core/render-ir-native.ts";
-import { createNativeCounterDocumentRenderer, createSpiralNativeDocumentRenderer } from "../luxel-core/native-route-document.ts";
+import {
+  buildCounterNativeDocumentOpts,
+  createNativeCounterDocumentRenderer,
+  createSpiralNativeDocumentRenderer,
+} from "../luxel-core/native-route-document.ts";
 import { streamSpiralNativeDocument } from "../luxel-core/stream-spiral-native.ts";
 import { resolveSsrBackend } from "../luxel-core/resolve-ssr-backend.ts";
 import type { NativeRuntimeKind } from "../config/native-runtime.ts";
@@ -344,6 +348,15 @@ function wrapRenderFromStore(
       : (_body: string, _store: ResourceStore) => {
           throw new Error("native counter document renderer missing");
         };
+  const counterNativeDocOpts =
+    nativeKind === "counter"
+      ? buildCounterNativeDocumentOpts(
+          codegenOpts,
+          bindings,
+          renderIr.boundaryIds,
+          renderIr.headStyle,
+        )
+      : null;
   const renderSpiralDoc =
     nativeKind === "spiral"
       ? createSpiralNativeDocumentRenderer(codegenOpts.routePath, renderIr.headStyle)
@@ -360,6 +373,7 @@ function wrapRenderFromStore(
         bindings,
         renderCounterDoc,
         codegenOpts.routePath,
+        counterNativeDocOpts,
       );
     } catch (err) {
       if (shouldFailFastOnNativeSsrError(nativeMode)) {

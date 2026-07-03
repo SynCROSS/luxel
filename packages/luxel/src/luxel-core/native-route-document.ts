@@ -57,6 +57,44 @@ export function createSpiralNativeDocumentRenderer(
 
 export type NativeCounterDocumentRenderer = (body: string, store: ResourceStore) => string;
 
+export type CounterNativeDocumentOpts = {
+  routePath: string;
+  headStyle: string;
+  hydrationScript: string;
+  shipDataSidecar: boolean;
+  shipHydrationSidecar: boolean;
+  shipClientRuntime: boolean;
+};
+
+export function buildCounterNativeDocumentOpts(
+  codegenOpts: CodegenSsrOptions,
+  bindings: readonly TemplateBinding[],
+  boundaryIds: readonly string[],
+  headStyle: string,
+): CounterNativeDocumentOpts {
+  const styleBlock = headStyle ? compactCss(headStyle) : "";
+  const hydrationScript = codegenOpts.shipHydrationSidecar
+    ? serializeLuxelHydration({
+        routeId: codegenOpts.routeId,
+        bindings,
+        boundaries: boundaryIds.map((id) => ({
+          id,
+          directive: "load",
+          clientModule: codegenOpts.clientModule,
+        })),
+        thirdPartySchema: codegenOpts.thirdPartySchema,
+      })
+    : "";
+  return {
+    routePath: codegenOpts.routePath,
+    headStyle: styleBlock,
+    hydrationScript,
+    shipDataSidecar: codegenOpts.shipDataSidecar ?? false,
+    shipHydrationSidecar: codegenOpts.shipHydrationSidecar ?? false,
+    shipClientRuntime: codegenOpts.shipClientRuntime ?? false,
+  };
+}
+
 export function createNativeCounterDocumentRenderer(
   codegenOpts: CodegenSsrOptions,
   bindings: readonly TemplateBinding[],

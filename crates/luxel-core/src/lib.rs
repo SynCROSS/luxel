@@ -59,8 +59,36 @@ pub fn render_counter_body(message: String) -> napi::Result<String> {
 }
 
 #[napi]
-pub fn render_counter_body_from_store(_snapshot_json: String) -> napi::Result<String> {
-  Err(napi::Error::from_reason(DEPRECATED_ROUTE_NAPI))
+pub fn render_counter_body_from_store(snapshot_json: String) -> napi::Result<String> {
+  counter::render_body_from_store(&snapshot_json).map_err(napi::Error::from_reason)
+}
+
+/// Full counter SSR document (body + luxel sidecars + client entry).
+#[napi]
+pub fn render_counter_document(message: String) -> napi::Result<String> {
+  Ok(counter::render_document(&message))
+}
+
+#[napi]
+pub fn render_counter_document_from_store(
+  snapshot_json: String,
+  route_path: String,
+  head_style: String,
+  hydration_script: String,
+  ship_data: bool,
+  ship_hydration: bool,
+  ship_client: bool,
+) -> napi::Result<String> {
+  counter::render_document_from_store(
+    &snapshot_json,
+    &route_path,
+    &head_style,
+    &hydration_script,
+    ship_data,
+    ship_hydration,
+    ship_client,
+  )
+  .map_err(napi::Error::from_reason)
 }
 
 #[napi]

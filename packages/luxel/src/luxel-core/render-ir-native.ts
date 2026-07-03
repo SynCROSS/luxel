@@ -3,7 +3,7 @@ import type { NativeSsrRouteKind } from "../compiler/spiral-native.ts";
 import type { TemplateBinding } from "../resource-store/luxel-data.ts";
 import type { ResourceStore } from "../resource-store/store.ts";
 import { getLuxelCoreNodeModule } from "../bench/ensure-core-node.ts";
-import { createSpiralNativeDocumentRenderer } from "./native-route-document.ts";
+import { createSpiralNativeDocumentRenderer, type CounterNativeDocumentOpts } from "./native-route-document.ts";
 
 type RenderBodyFromIrFn = (
   renderIrJson: string,
@@ -11,6 +11,16 @@ type RenderBodyFromIrFn = (
   bindingsJson: string,
 ) => string;
 type RenderCounterBodyFn = (message: string) => string;
+type RenderCounterBodyFromStoreFn = (snapshotJson: string) => string;
+type RenderCounterDocumentFromStoreFn = (
+  snapshotJson: string,
+  routePath: string,
+  headStyle: string,
+  hydrationScript: string,
+  shipData: boolean,
+  shipHydration: boolean,
+  shipClient: boolean,
+) => string;
 type RenderSpiralBodyFn = () => string;
 type RenderSpiralDocumentFn = () => string;
 type RenderSpiralBodyFromTilesFn = (tiles: Array<{ x: number; y: number }>) => string;
@@ -38,6 +48,24 @@ function requireRenderCounterBody(): RenderCounterBodyFn {
   return fn as RenderCounterBodyFn;
 }
 
+function requireRenderCounterBodyFromStore(): RenderCounterBodyFromStoreFn {
+  const mod = getLuxelCoreNodeModule();
+  const fn = mod?.renderCounterBodyFromStore;
+  if (typeof fn !== "function") {
+    throw new Error("luxel-core renderCounterBodyFromStore unavailable — run bench:ensure-core-node");
+  }
+  return fn as RenderCounterBodyFromStoreFn;
+}
+
+function requireRenderCounterDocumentFromStore(): RenderCounterDocumentFromStoreFn {
+  const mod = getLuxelCoreNodeModule();
+  const fn = mod?.renderCounterDocumentFromStore;
+  if (typeof fn !== "function") {
+    throw new Error("luxel-core renderCounterDocumentFromStore unavailable — run bench:ensure-core-node");
+  }
+  return fn as RenderCounterDocumentFromStoreFn;
+}
+
 function counterMessageFromStore(store: ResourceStore, bindings: readonly TemplateBinding[]): string {
   const messageBinding = bindings.find((binding) => binding.field === "message");
   const key = messageBinding?.resourceKey ?? "route:index:message";
@@ -53,7 +81,26 @@ export function renderCounterNativeBody(
   store: ResourceStore,
   bindings: readonly TemplateBinding[],
 ): string {
+  const mod = getLuxelCoreNodeModule();
+  if (typeof mod?.renderCounterBodyFromStore === "function") {
+    return requireRenderCounterBodyFromStore()(JSON.stringify(store.snapshot()));
+  }
   return requireRenderCounterBody()(counterMessageFromStore(store, bindings));
+}
+
+export function renderCounterNativeDocument(
+  store: ResourceStore,
+  opts: CounterNativeDocumentOpts,
+): string {
+  return requireRenderCounterDocumentFromStore()(
+    JSON.stringify(store.snapshot()),
+    opts.routePath,
+    opts.headStyle,
+    opts.hydrationScript,
+    opts.shipDataSidecar,
+    opts.shipHydrationSidecar,
+    opts.shipClientRuntime,
+  );
 }
 
 function spiralTilesFromStore(store: ResourceStore, bindings: readonly TemplateBinding[]): Array<{ x: number; y: number }> {
@@ -142,12 +189,16 @@ export function renderNativeDocumentFromStore(
   bindings: readonly TemplateBinding[],
   renderDoc: (body: string, store: ResourceStore) => string,
   routePath: string,
+  counterNativeDocOpts: CounterNativeDocumentOpts | null = null,
 ): string {
-  const body = renderNativeBodyFromStore(store, nativeKind, renderIr, bindings);
   if (nativeKind === "spiral") {
     const body = renderSpiralNativeBody(store, bindings);
     return createSpiralNativeDocumentRenderer(routePath, renderIr.headStyle)(body);
   }
+  if (counterNativeDocOpts) {
+    return renderCounterNativeDocument(store, counterNativeDocOpts);
+  }
+  const body = renderNativeBodyFromStore(store, nativeKind, renderIr, bindings);
   return renderDoc(body, store);
 }
 
@@ -184,10 +235,6 @@ export function assertDeprecatedRouteNapiGone(): void {
     {
       name: "renderSpiralRouteFromTiles",
       invoke: () => (mod.renderSpiralRouteFromTiles as (tiles: unknown[]) => string)([]),
-    },
-    {
-      name: "renderCounterBodyFromStore",
-      invoke: () => (mod.renderCounterBodyFromStore as (json: string) => string)("{}"),
     },
   ];
   for (const { name, invoke } of cases) {
