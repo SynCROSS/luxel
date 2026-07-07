@@ -10,6 +10,12 @@ import {
   type RequestContext,
 } from "./fetch-pipeline.ts";
 import { TieredHtmlCacheAdapter } from "./html-cache-tiered.ts";
+import {
+  encodeHtmlBody,
+  pathnameFromRequestUrl,
+  precomputedHtmlResponse,
+  requestHasStreamQuery,
+} from "./html-bytes.ts";
 
 export type AppServerOptions = {
   app: AppRuntime;
@@ -37,11 +43,10 @@ export function createAppServerFetch(options: AppServerOptions): (req: Request) 
 
 export function buildPrecomputedHtmlBodies(app: AppRuntime): Map<string, Uint8Array> {
   const out = new Map<string, Uint8Array>();
-  const enc = new TextEncoder();
   for (const manifestRoute of app.manifest.routes) {
     const route = app.getRoute(manifestRoute.path);
     if (!route?.precomputedHtml) continue;
-    out.set(normalizePath(manifestRoute.path), enc.encode(route.precomputedHtml));
+    out.set(normalizePath(manifestRoute.path), encodeHtmlBody(route.precomputedHtml));
   }
   return out;
 }
@@ -49,36 +54,26 @@ export function buildPrecomputedHtmlBodies(app: AppRuntime): Map<string, Uint8Ar
 export function createAppFetch(options: AppServerOptions): (req: Request) => Promise<Response> {
   const worker = (options.createRenderWorker ?? createRenderWorker)(options.app);
   const precomputedHtml = buildPrecomputedHtmlBodies(options.app);
-  const precomputedHtmlHeaders = new Map<string, Readonly<Record<string, string>>>();
-  for (const [path, body] of precomputedHtml) {
-    precomputedHtmlHeaders.set(
-      path,
-      Object.freeze({
-        "content-type": "text/html; charset=utf-8",
-        "content-length": String(body.byteLength),
-      }),
-    );
-  }
   const htmlCache = options.htmlCache
     ? new TieredHtmlCacheAdapter(options.htmlCache)
     : undefined;
   const fetchOptions: AppServerOptions = htmlCache ? { ...options, htmlCache } : options;
 
   return async (req) => {
-    const url = new URL(req.url);
-    const path = normalizePath(url.pathname);
     if (
       !fetchOptions.sessionStore &&
-      (req.method === "GET" || req.method === "HEAD") &&
-      !url.searchParams.has("stream")
+      (req.method === "GET" || req.method === "HEAD")
     ) {
-      const prebuilt = precomputedHtml.get(path);
-      if (prebuilt) {
-        return new Response(req.method === "HEAD" ? null : prebuilt, {
-          headers: precomputedHtmlHeaders.get(path),
-        });
+      const path = normalizePath(pathnameFromRequestUrl(req.url));
+      if (!requestHasStreamQuery(req.url)) {
+        const prebuilt = precomputedHtml.get(path);
+        if (prebuilt) {
+          return precomputedHtmlResponse(prebuilt, req.method);
+        }
       }
     }
+    const url = new URL(req.url);
+    const path = normalizePath(url.pathname);
     const route = fetchOptions.app.getRoute(path);
     const session = await resolveSession(req, fetchOptions.sessionStore);
     worker.setSession(session);

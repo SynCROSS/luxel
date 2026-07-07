@@ -9,6 +9,6 @@
 
 ## ADRs
 
-- System-wide: `docs/adr/`
+- System-wide: `docs/adr/` (includes ADR-0008 krausest tier-3 integration)
 - Toolchain: `packages/luxel/docs/adr/` (when needed)
 - Benchmarks: `packages/bench/docs/adr/` (when needed)

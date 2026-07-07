@@ -32,7 +32,9 @@ describe("luxel bench JSON lines", () => {
     }
     expect(lines.some((r) => r.fixture === "counter" && r.metric === "ssr_throughput_rps")).toBe(true);
     expect(lines.some((r) => r.fixture === "counter" && r.metric === "client_js_bytes")).toBe(true);
-    expect(lines.some((r) => r.fixture === "table" && r.status === "pending")).toBe(true);
+    expect(
+      lines.some((r) => r.fixture === "krausest" && ("status" in r ? r.status === "pending" : r.metric.startsWith("krausest_"))),
+    ).toBe(true);
   });
 
   test.skipIf(process.env.CI === "1")("spiral bench reports render worker throughput", async () => {

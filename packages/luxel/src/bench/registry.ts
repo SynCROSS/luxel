@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { runCounterBench } from "./counter.ts";
 import { runIsrBench } from "./isr.ts";
 import { runSpiralBench } from "./spiral.ts";
@@ -242,6 +243,12 @@ export async function* runBenchRegistry(
     };
   }
 
+  const repoRoot = join(import.meta.dir, "../../../..");
+  const { runKrausestRegistryLines } = await import("./krausest.ts");
+  for await (const line of runKrausestRegistryLines(repoRoot)) {
+    yield line;
+  }
+
   const docsServer = await createTestServerForApp("examples/docs-site");
   const { throughputRps: docsRps } = await runFetchThroughputBench(docsServer.url, 200);
   docsServer.close();
@@ -253,5 +260,4 @@ export async function* runBenchRegistry(
   };
 
   yield { fixture: "list", metric: "fixture", status: "pending" };
-  yield { fixture: "table", metric: "fixture", status: "pending" };
 }

@@ -1,9 +1,14 @@
 import type { BenchJsonLine } from "./registry.ts";
+import {
+  evaluateKrausestFromRawLines,
+  krausestGateThreshold,
+  weightedKrausestGeoMean,
+} from "./krausest/gate-eval.ts";
 
 export const BENCH_GATE_THRESHOLD = Number(process.env.LUXEL_BENCH_GATE_THRESHOLD ?? 1.08);
 
 /** Tiers enforced by `luxel bench --gate` (extend as runners land). */
-export const ACTIVE_GATE_TIERS = ["ssr", "isr"] as const satisfies readonly BenchTier[];
+export const ACTIVE_GATE_TIERS = ["ssr", "isr", "krausest"] as const satisfies readonly BenchTier[];
 
 export type BenchTier = "inp" | "ssr" | "isr" | "krausest" | "transfer";
 
@@ -179,25 +184,32 @@ export function evaluateInpTier(lines: BenchJsonLine[]): TierGateResult {
 }
 
 export function evaluateKrausestTier(lines: BenchJsonLine[]): TierGateResult {
-  const factors: number[] = [];
-  const frameworkSet = new Set<string>();
-  for (const line of numericLines(
-    lines,
-    (l) => l.metric.startsWith("krausest_") && l.metric.endsWith("_factor"),
-  )) {
-    if (!line.framework) continue;
-    factors.push(line.value);
-    frameworkSet.add(line.framework);
-  }
-  if (factors.length === 0) {
+  const active = (ACTIVE_GATE_TIERS as readonly string[]).includes("krausest");
+  const threshold = krausestGateThreshold();
+  const evalResult = evaluateKrausestFromRawLines(lines);
+  if (evalResult.durationFactors.length === 0) {
     return {
       tier: "krausest",
-      status: (ACTIVE_GATE_TIERS as readonly string[]).includes("krausest") ? "pending" : "inactive",
-      threshold: BENCH_GATE_THRESHOLD,
+      status: active ? "pending" : "inactive",
+      threshold,
       reason: "krausest scenarios not wired",
     };
   }
-  return evaluateTier("krausest", lines, { factors, frameworks: [...frameworkSet] });
+  const geo = weightedKrausestGeoMean(evalResult.durationFactors);
+  const med = median(evalResult.durationFactors.map((entry) => entry.factor));
+  const memoryOk = evalResult.memoryFailures.length === 0;
+  const durationOk = geo <= threshold;
+  const status: TierGateStatus =
+    durationOk && memoryOk ? "pass" : active ? "fail" : "inactive";
+  return {
+    tier: "krausest",
+    status: active ? status : "inactive",
+    threshold,
+    geo_mean_factor: geo,
+    median_factor: med,
+    frameworks: evalResult.frameworks,
+    reason: memoryOk ? undefined : `memory ceiling: ${evalResult.memoryFailures.join(", ")}`,
+  };
 }
 
 export function evaluateTransferTier(lines: BenchJsonLine[]): TierGateResult {

@@ -131,7 +131,7 @@ export const STACK_OPTIMIZATIONS: Record<string, string[]> = {
   ],
   "luxel-ssr": [
     "Production compile + precomputed static-load fast path",
-    "Auto native body when @luxel/core-node loadable (merged Q6)",
+    "Auto native when @luxel/core-node loadable + slim fetch",
     "Full counter hydration (sidecars + client bundle)",
   ],
   "luxel-ssr-worker-pool": [
@@ -144,8 +144,8 @@ export const STACK_OPTIMIZATIONS: Record<string, string[]> = {
     "Full counter hydration (sidecars + client bundle)",
   ],
   "luxel-ssr-native": [
-    "luxel-core counter hot path: renderCounterBody(message) — no JSON IR on nativeKind=counter",
-    "Per-request load + render (benchNativeLab — no compile precompute)",
+    "luxel-core counter document: renderCounterDocumentFromStore (single FFI)",
+    "Compile precompute + slim fetch hot path (938 B prod doc)",
   ],
   "luxel-ssr-full-worker-pool": [
     RENDER_WORKER_POOL_NOTE,

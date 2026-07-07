@@ -8,7 +8,7 @@ type Token =
   | { kind: "close"; tag: string }
   | { kind: "expr"; raw: string }
   | { kind: "text"; raw: string }
-  | { kind: "eachOpen"; listId: string; itemName: string }
+  | { kind: "eachOpen"; listId: string; itemName: string; keyExpr?: string }
   | { kind: "eachClose" };
 
 export type LoweredTemplate = {
@@ -48,9 +48,14 @@ function tokenize(source: string): Token[] {
         const end = source.indexOf("}", i);
         if (end < 0) throw parseError("unclosed each block");
         const raw = source.slice(i + 1, end).trim();
-        const eachMatch = raw.match(/^#each\s+(\w+)\s+as\s+(\w+)$/);
+        const eachMatch = raw.match(/^#each\s+(\w+)\s+as\s+(\w+)(?:\s+\(([^)]+)\))?$/);
         if (!eachMatch) throw parseError(`invalid each block: ${raw}`);
-        tokens.push({ kind: "eachOpen", listId: eachMatch[1]!, itemName: eachMatch[2]! });
+        tokens.push({
+          kind: "eachOpen",
+          listId: eachMatch[1]!,
+          itemName: eachMatch[2]!,
+          ...(eachMatch[3] ? { keyExpr: eachMatch[3]!.trim() } : {}),
+        });
         i = end + 1;
         continue;
       }
@@ -118,6 +123,7 @@ function parseOps(
         listId: tok.listId,
         itemName: tok.itemName,
         body: inner.ops,
+        ...(tok.keyExpr ? { keyExpr: tok.keyExpr } : {}),
       });
       continue;
     }

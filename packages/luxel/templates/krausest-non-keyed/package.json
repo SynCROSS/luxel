@@ -1,0 +1,17 @@
+{
+  "name": "js-framework-benchmark-non-keyed-luxel",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Luxel krausest non-keyed table demo",
+  "js-framework-benchmark": {
+    "frameworkVersion": "0.0.0",
+    "frameworkHomeURL": "https://github.com/SynCROSS/luxel",
+    "issues": [],
+    "language": "TypeScript"
+  },
+  "scripts": {
+    "dev": "echo 0",
+    "build-prod": "echo 0"
+  },
+  "license": "Apache-2.0"
+}

@@ -1,0 +1,14 @@
+{
+  "name": "@luxel/example-krausest-table",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "luxel dev",
+    "build": "luxel build",
+    "sync:krausest": "bun ../../packages/luxel/scripts/sync-krausest-luxel.ts"
+  },
+  "dependencies": {
+    "@luxel/luxel": "workspace:*"
+  }
+}

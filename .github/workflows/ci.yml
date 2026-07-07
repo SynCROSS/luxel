@@ -37,6 +37,34 @@ jobs:
           CI: "1"
           LUXEL_BENCH_SKIP_INP: "1"
           LUXEL_BENCH_SKIP_SPIRAL: "1"
+          LUXEL_BENCH_SKIP_KRAUSEST: "1"
+
+  krausest-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: bun install --backend=copyfile --linker hoisted
+      - run: bun run build:core-node
+      - name: Krausest example build + DOM contract
+        run: |
+          cd examples/krausest-table
+          bun run build
+          bun test ../../packages/luxel/test/krausest-contract.test.ts
+      - name: Krausest bench registry (pending without driver)
+        run: |
+          set -o pipefail
+          LUXEL_BENCH_SKIP_INP=1 LUXEL_BENCH_SKIP_SPIRAL=1 \
+            bun packages/luxel/src/cli.ts bench 2>&1 | tee /tmp/krausest-bench.log
+          grep -q '"fixture":"krausest"' /tmp/krausest-bench.log
+      - name: Document Chrome 148 pin
+        run: grep -q chrome148 docs/benchmarks/krausest-runbook.md .gitmodules
       - run: bunx playwright install chromium --with-deps
       - run: bunx playwright test
         env:

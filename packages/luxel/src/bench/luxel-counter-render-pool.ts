@@ -5,11 +5,29 @@ import { getLuxelRepoRoot } from "../paths.ts";
 import { precompileLuxelCounterForPool } from "./precompile-luxel-bench.ts";
 import type { BenchRenderWorkerPool } from "./competitors/render-worker-pool.ts";
 import { benchRenderWorkerCountForFixture } from "./competitors/render-worker-pool.ts";
+import { encodeHtmlBody } from "../server/html-bytes.ts";
 
 export type LuxelCounterRenderPoolOptions = {
   benchFullRender?: boolean;
   benchMinimalHtml?: boolean;
 };
+
+export async function readLuxelCounterPoolPrecomputedBody(
+  options: LuxelCounterRenderPoolOptions = {},
+): Promise<Uint8Array | null> {
+  if (options.benchFullRender) return null;
+  const repoRoot = getLuxelRepoRoot();
+  const app = await precompileLuxelCounterForPool(repoRoot, options);
+  const { readBenchPoolIndexPrecomputedHtml } = await import("./hydrate-compiled-app.ts");
+  let html = (await readBenchPoolIndexPrecomputedHtml(app.genRoot)) ?? null;
+  if (!html) return null;
+  const benchMinimalHtml = options.benchMinimalHtml ?? isLuxelBenchMinimalHtml();
+  if (benchMinimalHtml) {
+    const { stripLuxelBenchSidecars } = await import("./strip-bench-html.ts");
+    html = stripLuxelBenchSidecars(html);
+  }
+  return encodeHtmlBody(html);
+}
 
 export async function createLuxelCounterRenderPool(
   options: LuxelCounterRenderPoolOptions = {},

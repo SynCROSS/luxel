@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { existsSync } from "node:fs";
 
@@ -7,43 +8,47 @@ import {
   createIsrBenchServer,
   createTestServer,
   getLuxelRepoRoot,
+  htmlBodyHeaders,
+  isLuxelCoreNodeLoadable,
   prepareLuxelSpiralNativeBench,
   prepareLuxelCounterNativeBench,
 } from "@luxel/luxel/bench";
-import { createStaticServer, type BenchServer } from "../http-server.ts";
+import { createFetchServer, type BenchServer } from "../http-server.ts";
 
 type CounterBenchOpts = {
-  ssrBackend?: "ts" | "native";
+  ssrBackend?: "ts" | "native" | "auto";
   benchFullRender?: boolean;
   benchNativeLab?: boolean;
 };
 
 async function startLuxelCounterBenchServer(opts: CounterBenchOpts = {}): Promise<BenchServer> {
-  const ssrBackend = opts.ssrBackend ?? "ts";
-  if (ssrBackend === "native") {
+  const ssrBackend = opts.ssrBackend ?? "auto";
+  if (ssrBackend === "native" || (ssrBackend === "auto" && isLuxelCoreNodeLoadable())) {
     await prepareLuxelCounterNativeBench();
   }
   return createTestServer(0, {
+    benchSlimFetch: true,
+    benchMinimalHtml: false,
     benchFullRender: opts.benchFullRender ?? false,
     benchNativeLab: opts.benchNativeLab ?? false,
-    routeSsrBackends: { "/": ssrBackend },
+    ...(ssrBackend === "auto" ? {} : { routeSsrBackends: { "/": ssrBackend } }),
   });
 }
 
 export async function startLuxelSsrServer(): Promise<BenchServer> {
-  return startLuxelCounterBenchServer({ ssrBackend: "ts", benchFullRender: false });
+  return startLuxelCounterBenchServer({ benchFullRender: false });
 }
 
 export async function startLuxelSsrFullServer(): Promise<BenchServer> {
-  return startLuxelCounterBenchServer({ ssrBackend: "ts", benchFullRender: true });
+  return startLuxelCounterBenchServer({ benchFullRender: true });
 }
 
-/** Counter luxel-core native SSR (opt-in row until native ≥ TS on WinRK). */
+/** Counter luxel-core native SSR with compile precompute when loadable. */
 export async function startLuxelSsrNativeServer(): Promise<BenchServer> {
   return startLuxelCounterBenchServer({
     ssrBackend: "native",
     benchFullRender: false,
-    benchNativeLab: true,
+    benchNativeLab: false,
   });
 }
 
@@ -54,14 +59,14 @@ type SpiralBenchOpts = {
 };
 
 async function startLuxelSpiralBenchServer(opts: SpiralBenchOpts = {}): Promise<BenchServer> {
-  const ssrBackend = opts.ssrBackend;
+  const ssrBackend = opts.ssrBackend ?? "native";
   if (ssrBackend === "native") {
     await prepareLuxelSpiralNativeBench();
   }
   return createBenchServer("spiral", 0, {
     benchFullRender: opts.benchFullRender ?? false,
     benchNativeLab: opts.benchNativeLab ?? false,
-    ...(ssrBackend ? { routeSsrBackends: { "/": ssrBackend } } : {}),
+    routeSsrBackends: { "/": ssrBackend },
     benchSlimFetch: true,
     benchMinimalHtml: true,
   });
@@ -73,16 +78,16 @@ export async function startLuxelSpiralSsrServer(): Promise<BenchServer> {
 }
 
 export async function startLuxelSpiralSsrFullServer(): Promise<BenchServer> {
-  return startLuxelSpiralBenchServer({ ssrBackend: "ts", benchFullRender: true });
+  return startLuxelSpiralBenchServer({ ssrBackend: "native", benchFullRender: true });
 }
 
-/** Spiral luxel-core native SSR lab row — per-request native bisect. */
+/** Spiral luxel-core native SSR — per-request native with compile-time hot body. */
 export async function startLuxelSpiralSsrNativeServer(): Promise<BenchServer | null> {
   try {
     return await startLuxelSpiralBenchServer({
       ssrBackend: "native",
       benchFullRender: false,
-      benchNativeLab: true,
+      benchNativeLab: false,
     });
   } catch {
     return null;
@@ -97,9 +102,37 @@ export async function startLuxelCsrServer(): Promise<BenchServer> {
   const staticRoot = join(repoRoot, "examples/counter/dist/static");
   if (!existsSync(join(staticRoot, "index.html"))) {
     const outDir = await buildApp(repoRoot, "examples/counter");
-    return createStaticServer(join(outDir, "static"));
+    return createCachedStaticCounterServer(join(outDir, "static"));
   }
-  return createStaticServer(staticRoot);
+  return createCachedStaticCounterServer(staticRoot);
+}
+
+async function createCachedStaticCounterServer(staticRoot: string): Promise<BenchServer> {
+  const indexPath = join(staticRoot, "index.html");
+  const indexBody = await readFile(indexPath);
+  const indexHeaders = htmlBodyHeaders(indexBody);
+  return createFetchServer(async (req) => {
+    const path = new URL(req.url).pathname;
+    if (path === "/" || path === "/index.html") {
+      return new Response(indexBody, { headers: indexHeaders });
+    }
+    try {
+      const filePath = join(staticRoot, path.replace(/^\//, ""));
+      const body = await readFile(filePath);
+      const ext = filePath.slice(filePath.lastIndexOf("."));
+      const mime =
+        ext === ".js"
+          ? "text/javascript; charset=utf-8"
+          : ext === ".css"
+            ? "text/css; charset=utf-8"
+            : "application/octet-stream";
+      return new Response(body, {
+        headers: { "content-type": mime, "content-length": String(body.byteLength) },
+      });
+    } catch {
+      return new Response("not found", { status: 404 });
+    }
+  });
 }
 
 export async function startLuxelIsrServer(): Promise<BenchServer> {

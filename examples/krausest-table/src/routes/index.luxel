@@ -1,0 +1,152 @@
+<template>
+  <div id="main" hydrate:load>
+    <div class="container">
+      <div class="jumbotron">
+        <div class="row">
+          <div class="col-md-6">
+            <h1>Luxel</h1>
+          </div>
+          <div class="col-md-6">
+            <div class="row">
+              <div class="col-sm-6 smallpad">
+                <button type="button" class="btn btn-primary btn-block" id="run" on:click={run}>
+                  Create 1,000 rows
+                </button>
+              </div>
+              <div class="col-sm-6 smallpad">
+                <button type="button" class="btn btn-primary btn-block" id="runlots" on:click={runLots}>
+                  Create 10,000 rows
+                </button>
+              </div>
+              <div class="col-sm-6 smallpad">
+                <button type="button" class="btn btn-primary btn-block" id="add" on:click={add}>
+                  Append 1,000 rows
+                </button>
+              </div>
+              <div class="col-sm-6 smallpad">
+                <button type="button" class="btn btn-primary btn-block" id="update" on:click={update}>
+                  Update every 10th row
+                </button>
+              </div>
+              <div class="col-sm-6 smallpad">
+                <button type="button" class="btn btn-primary btn-block" id="clear" on:click={clearRows}>
+                  Clear
+                </button>
+              </div>
+              <div class="col-sm-6 smallpad">
+                <button type="button" class="btn btn-primary btn-block" id="swaprows" on:click={swapRows}>
+                  Swap Rows
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <table class="table table-hover table-striped test-data">
+        <tbody>
+          {#each rows as row}
+          <tr class="{row.trClass}">
+            <td class="col-md-1">{row.id}</td>
+            <td class="col-md-4">
+              <a on:click={selectRow}>{row.label}</a>
+            </td>
+            <td class="col-md-1">
+              <a on:click={removeRow}>
+                <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
+              </a>
+            </td>
+          </tr>
+          {/each}
+        </tbody>
+      </table>
+      <span class="preloadicon glyphicon glyphicon-remove" aria-hidden="true"></span>
+    </div>
+  </div>
+</template>
+
+<script>
+const rows = signal([]);
+const selected = signal(null);
+let nextId = 1;
+
+const adjectives = ["pretty", "large", "big", "small", "tall", "short", "long", "handsome", "plain", "quaint"];
+const nouns = ["table", "chair", "house", "car", "tree", "apple", "ball", "fish", "cat", "dog"];
+
+function randomItem(list) {
+  return list[Math.floor(Math.random() * list.length)];
+}
+
+function buildData(count) {
+  const data = [];
+  for (let i = 0; i < count; i++) {
+    data.push({
+      id: nextId++,
+      label: `${randomItem(adjectives)} ${randomItem(nouns)} ${i}`,
+      trClass: "",
+      rowId: nextId - 1,
+    });
+  }
+  return data;
+}
+
+function applySelection() {
+  const sel = selected.value;
+  rows.value = rows.value.map((row) => ({
+    ...row,
+    trClass: row.id === sel ? "danger" : "",
+  }));
+}
+
+function run() {
+  rows.value = buildData(1000);
+  selected.value = null;
+}
+
+function runLots() {
+  rows.value = buildData(10000);
+  selected.value = null;
+}
+
+function add() {
+  rows.value = [...rows.value, ...buildData(1000)];
+}
+
+function update() {
+  const next = rows.value.slice();
+  for (let i = 0; i < next.length; i += 10) {
+    const row = next[i];
+    if (!row) continue;
+    next[i] = { ...row, label: `${row.label} !!!` };
+  }
+  rows.value = next;
+}
+
+function clearRows() {
+  rows.value = [];
+  selected.value = null;
+}
+
+function swapRows() {
+  if (rows.value.length <= 998) return;
+  const next = rows.value.slice();
+  const tmp = next[1];
+  next[1] = next[998];
+  next[998] = tmp;
+  rows.value = next;
+}
+
+function selectRow() {
+  const el = event.target;
+  const tr = el.closest("tr");
+  const id = Number(tr?.querySelector(".col-md-1")?.textContent);
+  selected.value = id;
+  applySelection();
+}
+
+function removeRow() {
+  const el = event.target;
+  const tr = el.closest("tr");
+  const id = Number(tr?.querySelector(".col-md-1")?.textContent);
+  rows.value = rows.value.filter((row) => row.id !== id);
+}
+</script>

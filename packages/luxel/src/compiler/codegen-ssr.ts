@@ -137,6 +137,20 @@ function buildElement(
     if (name.startsWith("hydrate:")) continue;
     attrs[name] = value;
   }
+  for (const [name, value] of Object.entries(op.attrs)) {
+    if (name.startsWith("on:")) {
+      attrs["data-luxel-click"] = value;
+    }
+  }
+
+  if (op.children.length === 1 && op.children[0]?.kind === "forLoop") {
+    const loop = op.children[0];
+    attrs["data-luxel-each"] = loop.listId;
+    return {
+      attrs,
+      innerHtml: renderForLoop(loop, data).trim(),
+    };
+  }
 
   const innerParts: string[] = [];
   for (const child of op.children) {

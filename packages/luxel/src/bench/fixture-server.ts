@@ -37,8 +37,8 @@ export {
 } from "./competitors/worker-round-robin-dispatch.ts";
 export { createSpiralInlineRenderPool } from "./competitors/spiral-inline-render-pool.ts";
 export { createCounterInlineRenderPool } from "./competitors/counter-inline-render-pool.ts";
-export { createLuxelSpiralRenderPool } from "./luxel-spiral-render-pool.ts";
-export { createLuxelCounterRenderPool } from "./luxel-counter-render-pool.ts";
+export { createLuxelSpiralRenderPool, readLuxelSpiralPoolPooledBody } from "./luxel-spiral-render-pool.ts";
+export { createLuxelCounterRenderPool, readLuxelCounterPoolPrecomputedBody } from "./luxel-counter-render-pool.ts";
 export { createLuxelNavDemoRenderPool } from "./luxel-isr-render-pool.ts";
 export { createFastifyHtmlSpiralRenderPool } from "./fastify-html-spiral-render-pool.ts";
 export { createFastifyHtmlCounterRenderPool } from "./fastify-html-counter-render-pool.ts";
@@ -66,6 +66,8 @@ export {
   createStaticHttpCounterServer,
   createStaticHttpSpiralServer,
 } from "./static-servers.ts";
+
+export { htmlBodyHeaders, precomputedHtmlResponse, encodeHtmlBody } from "../server/html-bytes.ts";
 
 export type BenchFixtureId = "counter" | "nav-demo" | "spiral" | (string & {});
 
@@ -104,6 +106,7 @@ export async function createIsrBenchServer(port = 0): Promise<BenchServerHandle>
     htmlCacheDir: cacheDir,
     routeRevalidateSeconds: { "/": 1 },
     internalRoutes: true,
+    benchSlimFetch: false,
   });
   const base = server.url.endsWith("/") ? server.url : `${server.url}/`;
   const miss = await fetch(base);

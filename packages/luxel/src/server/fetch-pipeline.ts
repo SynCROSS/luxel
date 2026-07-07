@@ -1,4 +1,5 @@
 import { ASSET_CLIENT } from "../compiler/codegen-ssr.ts";
+import { htmlBodyHeaders, precomputedHtmlResponse } from "./html-bytes.ts";
 import type { RenderWorker } from "./render-worker.ts";
 import type { AppRuntime } from "./app-runtime.ts";
 import type { AppServerOptions } from "./handler.ts";
@@ -156,7 +157,7 @@ export const matchPrecomputedHtml: FetchStage = async (ctx) => {
   if (!prebuilt || ctx.options.sessionStore || ctx.url.searchParams.has("stream")) {
     return null;
   }
-  return new Response(prebuilt, { headers: HTML_HEADERS });
+  return precomputedHtmlResponse(prebuilt, ctx.req.method);
 };
 
 export const matchStaticSsg: FetchStage = async (ctx) => {
@@ -177,11 +178,9 @@ export const matchIsrCache: FetchStage = async (ctx) => {
   }
   const cached = await options.htmlCache.get(path);
   if (!cached || !isCacheFresh(cached)) return null;
-  return new Response(cached.body ?? cached.html, {
-    headers: {
-      "content-type": "text/html; charset=utf-8",
-      "x-luxel-cache": "hit",
-    },
+  const body = cached.body ?? new TextEncoder().encode(cached.html);
+  return precomputedHtmlResponse(body, ctx.req.method, {
+    "x-luxel-cache": "hit",
   });
 };
 

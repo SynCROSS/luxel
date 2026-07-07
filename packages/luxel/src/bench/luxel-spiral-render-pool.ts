@@ -8,6 +8,7 @@ import { prepareLuxelSpiralNativeBench } from "./ensure-core-node.ts";
 import { getLuxelRepoRoot } from "../paths.ts";
 import { precompileLuxelAppForPool } from "./precompile-luxel-bench.ts";
 import { stripLuxelBenchSidecars } from "./strip-bench-html.ts";
+import { encodeHtmlBody } from "../server/html-bytes.ts";
 
 export type LuxelSpiralRenderPoolOptions = {
   ssrBackend?: "ts" | "native";
@@ -39,6 +40,22 @@ const SPIRAL_HEAD_STYLE = `#wrapper {
   height: 10px;
   background: #333;
 }`;
+
+export async function readLuxelSpiralPoolPooledBody(
+  options: LuxelSpiralRenderPoolOptions = {},
+): Promise<Uint8Array> {
+  const ssrBackend = options.ssrBackend ?? "native";
+  const repoRoot = getLuxelRepoRoot();
+  const appDir = await ensureSpiralFixture(repoRoot);
+  if (ssrBackend === "native") {
+    await prepareLuxelSpiralNativeBench();
+  }
+  const app = await precompileLuxelAppForPool(repoRoot, appDir, {
+    routeSsrBackends: { "/": ssrBackend },
+  });
+  const html = stripLuxelBenchSidecars(await sampleLuxelSpiralHtml(app.genRoot));
+  return encodeHtmlBody(html);
+}
 
 export async function createLuxelSpiralRenderPool(
   options: LuxelSpiralRenderPoolOptions = {},

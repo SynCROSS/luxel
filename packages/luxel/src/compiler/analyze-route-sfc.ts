@@ -106,10 +106,12 @@ function resolveDocumentPayload(
   };
 }
 
+import type { RenderIr } from "./render-ir.ts";
+import { collectAttachContextSymbols } from "./codegen-attach.ts";
+
 function collectHandlerSymbols(renderIr: RenderIr): string[] {
-  const symbols = new Set<string>();
-  for (const bind of renderIr.bindPoints) {
-    symbols.add(bind.expr);
-  }
-  return [...symbols];
+  return collectAttachContextSymbols(
+    renderIr.bindPoints.map((b) => b.expr),
+    renderIr.domOps,
+  );
 }

@@ -137,6 +137,22 @@ function emitBodyStatements(
       continue;
     }
     if (op.kind === "element") {
+      if (op.children.length === 1 && op.children[0]?.kind === "forLoop") {
+        const loop = op.children[0];
+        const openTag = emitOpenTagExpr(op.tag, { ...op.attrs, "data-luxel-each": loop.listId }, dataVar, loop);
+        lines.push(`${indent}body += ${openTag} + ">";`);
+        lines.push(`${indent}const _list = ${dataVar}.${loop.listId};`);
+        lines.push(`${indent}if (Array.isArray(_list)) {`);
+        lines.push(`${indent}  for (let _i = 0; _i < _list.length; _i++) {`);
+        lines.push(`${indent}    const ${loop.itemName} = _list[_i];`);
+        lines.push(
+          ...emitBodyStatements(loop.body, dataVar, { itemName: loop.itemName }, `${indent}    `),
+        );
+        lines.push(`${indent}  }`);
+        lines.push(`${indent}}`);
+        lines.push(`${indent}body += ${JSON.stringify(`</${op.tag}>`)};`);
+        continue;
+      }
       const openTag = emitOpenTagExpr(op.tag, op.attrs, dataVar, loop);
       if (op.children.length === 0) {
         lines.push(
@@ -158,7 +174,11 @@ function emitOpenTagExpr(
   dataVar: string,
   loop: LoopCtx | undefined,
 ): string {
-  const attrExprs = Object.entries(attrs)
+  const merged = { ...attrs };
+  for (const [name, value] of Object.entries(attrs)) {
+    if (name.startsWith("on:")) merged["data-luxel-click"] = value;
+  }
+  const attrExprs = Object.entries(merged)
     .filter(([name]) => !name.startsWith("on:") && !name.startsWith("hydrate:"))
     .map(
       ([name, value]) =>

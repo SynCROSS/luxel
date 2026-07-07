@@ -69,7 +69,6 @@ export function createRenderWorker(app: AppRuntime): RenderWorker {
 
   function captureRenderCacheInputs(route: AppRoute): RenderCacheInput[] | null {
     if (activeSession) return null;
-    if (routeShipsData(route.path)) return null;
     const inputs: RenderCacheInput[] = [];
     for (const binding of route.bindings) {
       const entry = store.getEntry(binding.resourceKey);
@@ -104,10 +103,11 @@ export function createRenderWorker(app: AppRuntime): RenderWorker {
     const html = route.spiralRenderd
       ? await renderSpiralViaRenderd(route, routeShipsData(route.path) ? data : undefined)
       : route.renderFromStore(store);
+    const body = encoder.encode(html);
     if (cacheInputs) {
-      renderCache.set(route.path, { inputs: cacheInputs, html, data });
+      renderCache.set(route.path, { inputs: cacheInputs, html, data, body });
     }
-    return { html, data };
+    return { html, data, body };
   }
 
   return {

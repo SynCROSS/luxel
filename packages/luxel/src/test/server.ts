@@ -4,6 +4,11 @@ import { compileApp, compileCounterApp, type CompileAppOptions } from "../route/
 import { FsHtmlCacheAdapter } from "../server/html-cache-fs.ts";
 import { createRenderWorker } from "../server/render-worker.ts";
 import { normalizePath } from "../server/fetch-pipeline.ts";
+import {
+  pathnameFromRequestUrl,
+  precomputedHtmlResponse,
+  requestHasStreamQuery,
+} from "../server/html-bytes.ts";
 import { applyBenchFullRender, LUXEL_BENCH_POOL_FULL_SUFFIX } from "../bench/precompile-luxel-bench.ts";
 import {
   isLuxelBenchFullRender,
@@ -13,28 +18,7 @@ import {
 import { createListenFetchServer } from "./http-server.ts";
 import { getLuxelRepoRoot } from "../paths.ts";
 
-const HTML_BODY_HEADERS = new WeakMap<Uint8Array, Readonly<Record<string, string>>>();
 const HTML_ENCODER = new TextEncoder();
-
-function htmlHeadersForBody(body: Uint8Array): Readonly<Record<string, string>> {
-  const cached = HTML_BODY_HEADERS.get(body);
-  if (cached) return cached;
-  const headers = Object.freeze({
-    "content-type": "text/html; charset=utf-8",
-    "content-length": String(body.byteLength),
-  });
-  HTML_BODY_HEADERS.set(body, headers);
-  return headers;
-}
-
-function pathnameFromRequestUrl(rawUrl: string): string {
-  const schemeEnd = rawUrl.indexOf("://");
-  const searchFrom = schemeEnd >= 0 ? schemeEnd + 3 : 0;
-  const pathStart = rawUrl.indexOf("/", searchFrom);
-  if (pathStart < 0) return "/";
-  const queryStart = rawUrl.indexOf("?", pathStart);
-  return queryStart < 0 ? rawUrl.slice(pathStart) : rawUrl.slice(pathStart, queryStart);
-}
 
 export type TestServerOptions = {
   appDir?: string;
@@ -76,10 +60,6 @@ async function createBenchSlimFetch(
 ): Promise<(req: Request) => Promise<Response>> {
   const worker = createRenderWorker(app);
   const precomputedHtml = buildPrecomputedHtmlBodies(app);
-  const precomputedHtmlHeaders = new Map<string, Readonly<Record<string, string>>>();
-  for (const [path, body] of precomputedHtml) {
-    precomputedHtmlHeaders.set(path, htmlHeadersForBody(body));
-  }
 
   function finalizeBody(body: Uint8Array): Uint8Array {
     if (!benchMinimalHtml) return body;
@@ -88,16 +68,13 @@ async function createBenchSlimFetch(
   }
 
   const hotBodies = new Map<string, Uint8Array>();
-  const hotHeaders = new Map<string, Readonly<Record<string, string>>>();
   if (!benchFullRender) {
     for (const route of app.routes) {
       const path = normalizePath(route.path);
       const prebuilt = precomputedHtml.get(path);
       if (prebuilt) continue;
       const { body } = await worker.renderBytes(path);
-      const hot = finalizeBody(body);
-      hotBodies.set(path, hot);
-      hotHeaders.set(path, htmlHeadersForBody(hot));
+      hotBodies.set(path, finalizeBody(body));
     }
   }
 
@@ -106,23 +83,19 @@ async function createBenchSlimFetch(
     if ((req.method !== "GET" && req.method !== "HEAD") || !app.getRoute(path)) {
       return new Response("Not Found", { status: 404 });
     }
-    const prebuilt = precomputedHtml.get(path);
-    if (prebuilt) {
-      return new Response(req.method === "HEAD" ? null : prebuilt, {
-        headers: precomputedHtmlHeaders.get(path),
-      });
+    if (!requestHasStreamQuery(req.url)) {
+      const prebuilt = precomputedHtml.get(path);
+      if (prebuilt) {
+        return precomputedHtmlResponse(prebuilt, req.method);
+      }
     }
     const hot = hotBodies.get(path);
     if (hot) {
-      return new Response(req.method === "HEAD" ? null : hot, {
-        headers: hotHeaders.get(path),
-      });
+      return precomputedHtmlResponse(hot, req.method);
     }
     const { body } = await worker.renderBytes(path);
     const out = finalizeBody(body);
-    return new Response(req.method === "HEAD" ? null : out, {
-      headers: htmlHeadersForBody(out),
-    });
+    return precomputedHtmlResponse(out, req.method);
   };
 }
 
