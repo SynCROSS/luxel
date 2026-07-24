@@ -17,6 +17,7 @@ import {
   writeSchemaStreamBenchArtifact,
 } from "../schema/bench.ts";
 import { runIpcBench, writeIpcBenchArtifact } from "../bench/ipc/bench.ts";
+import { runKrausestBenchCommand, parseKrausestBenchArgv } from "../bench/krausest/cli.ts";
 import { runBenchRegistry } from "../bench/registry.ts";
 import { resolveAppDir } from "../config/resolve-app.ts";
 import { devApp } from "../dev/serve.ts";
@@ -114,6 +115,10 @@ export async function runSchemaStreamBenchCommand(repoRoot: string): Promise<num
 }
 
 export async function runBenchCommand(args: string[], repoRoot: string): Promise<number> {
+  const krausestMode = parseKrausestBenchArgv(args);
+  if (krausestMode) {
+    return runKrausestBenchCommand(repoRoot, krausestMode);
+  }
   if (args.includes("--boundary")) {
     return runBoundaryBenchCommand();
   }
@@ -211,7 +216,7 @@ export async function dispatchHostCommand(
   ctx: HostContext,
 ): Promise<{ code: number; result: HostDispatchResult }> {
   if (!cmd) {
-    console.error("usage: luxel <dev|build|bench [--gate|--native-gate|--boundary|--ipc|--schema-stream]|serve>");
+    console.error("usage: luxel <dev|build|bench [--krausest [--full|--all-frameworks|--compare|--all-scenarios|--gate|--write-artifacts]|--gate|--native-gate|--boundary|--ipc|--schema-stream]|serve>");
     return { code: 1, result: "exit" };
   }
 

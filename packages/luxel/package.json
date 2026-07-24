@@ -31,6 +31,11 @@
     "dev": "bun src/cli.ts dev",
     "build": "bun src/cli.ts build",
     "bench": "bun src/cli.ts bench",
+    "bench:krausest": "bun src/cli.ts bench --krausest",
+    "bench:krausest:all": "bun src/cli.ts bench --krausest --all-scenarios",
+    "bench:krausest:compare": "bun src/cli.ts bench --krausest --compare",
+    "bench:krausest:full": "bun src/cli.ts bench --krausest --full",
+    "bench:krausest:all-frameworks": "bun src/cli.ts bench --krausest --all-frameworks",
     "build:node-host": "node scripts/build-node-host.mjs",
     "prepublishOnly": "node scripts/build-node-host.mjs",
     "build:bench-wasm": "wat2wasm test/fixtures/plugins/fetch-import.wat -o test/fixtures/plugins/fetch-import.wasm"

@@ -1,4 +1,13 @@
-import { cleanupOrphanBenchProcesses } from "./bench-cleanup-orphans.ts";
+import {
+  cleanupOrphanBenchProcesses,
+  isAggressiveCleanupRequested,
+} from "./bench-cleanup-orphans.ts";
 
-const killed = cleanupOrphanBenchProcesses();
-console.error(killed > 0 ? `cleaned ${killed} orphan bench process(es)` : "no orphan bench processes found");
+const aggressive = isAggressiveCleanupRequested();
+const killed = cleanupOrphanBenchProcesses({ aggressive });
+const mode = aggressive ? " (aggressive)" : "";
+console.error(
+  killed > 0
+    ? `cleaned ${killed} orphan bench process(es)${mode}`
+    : `no orphan bench processes found${mode}`,
+);

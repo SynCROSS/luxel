@@ -6,9 +6,35 @@ export function bindText(el: Element | null, read: () => string): void {
   el.textContent = read();
 }
 
-export function bindClick(el: Element | null, handler: () => void): void {
+export type ClickHandler = (event: MouseEvent) => void;
+
+export function bindClick(el: Element | null, handler: ClickHandler): void {
   if (!el) throw new Error("bindClick: element not found");
   el.addEventListener("click", handler);
+}
+
+/**
+ * One listener on `root` for `[data-luxel-click]` descendants.
+ * Used by `{#each}` row templates so cloneNode rows need no per-row listeners.
+ */
+export function bindDelegatedClicks(
+  root: Element | null,
+  dispatch: (name: string, event: MouseEvent) => void,
+): void {
+  if (!root) throw new Error("bindDelegatedClicks: element not found");
+  root.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!isElementNode(target)) return;
+    let el: Element | null = target;
+    while (el && el !== root) {
+      const name = el.getAttribute("data-luxel-click");
+      if (name) {
+        dispatch(name, event as MouseEvent);
+        return;
+      }
+      el = el.parentElement;
+    }
+  });
 }
 
 function isElementNode(node: unknown): node is Element {

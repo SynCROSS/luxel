@@ -10,12 +10,12 @@ import {
 const weightsPath = join(import.meta.dir, "../src/bench/krausest/upstream-weights.json");
 
 describe("krausest scenario weights", () => {
-  test("vendored weights match upstream-weights.json at chrome148 pin", async () => {
+  test("vendored weights match upstream-weights.json at chrome150 pin", async () => {
     const raw = JSON.parse(await readFile(weightsPath, "utf8")) as {
       pin: string;
       weights: Record<string, number>;
     };
-    expect(raw.pin).toBe("chrome148");
+    expect(raw.pin).toBe("chrome150");
     for (const scenario of KRAUSEST_DURATION_SCENARIOS) {
       const benchId = KRAUSEST_UPSTREAM_BENCHMARK_IDS[scenario];
       expect(raw.weights[benchId]).toBe(KRAUSEST_SCENARIO_WEIGHTS[scenario]);

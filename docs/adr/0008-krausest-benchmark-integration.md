@@ -18,7 +18,7 @@ Grilling session (2026-07-06) locked phased delivery, metric shape, gate policy,
 ## Decision
 
 1. **Upstream driver as source of truth**
-   - Add git submodule `vendor/js-framework-benchmark` pinned to a **release tag** (initial pin: `chrome148`, matching published results for Chrome 148).
+   - Add git submodule `vendor/js-framework-benchmark` pinned to a **release tag** (current pin: `chrome150`, matching published results for Chrome 150).
    - `luxel bench` invokes the submodule Puppeteer/webdriver runner — no Playwright reimplementation of scenario timing rules.
    - Bump submodule pin deliberately; add a test that vendored scenario weights still match upstream driver config.
 
@@ -41,19 +41,25 @@ Grilling session (2026-07-06) locked phased delivery, metric shape, gate policy,
 5. **Gate policy**
    - Krausest tier stays **out of** `ACTIVE_GATE_TIERS` until full non-keyed **duration** matrix is green for all executed comparison frameworks.
    - **Duration pass:** weighted geometric mean of Luxel scenario factors ≤ `LUXEL_KRAUSEST_GATE_THRESHOLD` (default **1.09**). Weights vendored from upstream driver (not equal-weight).
+   - The weighted geometric mean is **not** emitted as a benchmark JSONL row (raw `krausest_*_ms` only; gate does the math). **Amended 2026-07-07 (grilling):** it **is** rendered as an aggregate table row in the report — duration table shows the weighted geometric mean, memory table shows the unweighted geometric mean — to faithfully reproduce krausest.github.io, which displays these rows. Framework columns are sorted fastest-first by weighted geo-mean, as on the official site. (Supersedes the original "not rendered as a table row" decision.)
    - **Memory pass (separate):** per memory scenario, `luxel_mb / fastest_mb ≤ 1.5` (ceiling check, not in duration geo-mean).
    - Other tiers (SSR, INP, ISR, transfer) keep `BENCH_GATE_THRESHOLD` default **1.08**.
-   - Denominator = frameworks **actually executed** in the run (existing fairness rule). Upstream rows: `react-hooks-v*`, `vue-v3*`, `vue-vapor-v3*`, `svelte-v*`, `solid-v*`, `luxel`.
+   - Denominator = official krausest framework implementations **actually executed by the upstream driver**. **Amended 2026-07-09 (grilling):** full matrix (`LUXEL_KRAUSEST_FULL=1` / `--full`) uses explicit allowlist of **66** published chrome150 non-keyed directories plus Luxel; hard-fails when any official framework missing after `build.zip` extract + targeted rebuild.
 
 6. **Micro fixture registry**
    - `fixtures/micro/table` **fulfilled by krausest** (`fixture: "krausest"` in JSONL).
    - `fixtures/micro/list` remains **`pending`** — separate list fixture if needed later; not in scope for krausest table work.
 
 7. **CI browser parity**
-   - CI Chromium version must match the pinned submodule release notes (initial target: **Chrome 148** family, aligned with `chrome148` tag).
-   - Document pin + Chrome version in bench runbook; update together on submodule bump.
+   - Reference build: Chrome **150.0.7871.47** (published chrome150 run). Resolution prefers **ungoogled-chromium** 150.x, falls back to Chrome for Testing, then installed Chromium; `KRAUSEST_CHROME_BINARY` overrides. Warn (do not hard-fail) on version skew.
+   - Document pin + browser policy in bench runbook; update together on submodule bump.
 
-8. **Phased delivery**
+8. **Harness setup (amended 2026-07-09)**
+   - Prefer upstream chrome150 release `build.zip`; rebuild only missing frameworks; always rebuild Luxel.
+   - Stderr progress during driver runs (WinRK-style `[fw i/F] [bench j/B]` + elapsed/ETA).
+   - Log harness phase timings (`setup.zip_ms`, `setup.rebuild_ms`, `driver.total_ms`).
+
+9. **Phased delivery**
    - **Slice 1:** submodule + registry runner + non-keyed client `{#each}` + `examples/krausest-table` passing upstream `create rows` and `clear rows` for Luxel only; gate tier inactive/pending.
    - **Slice 2+:** all comparison frameworks, all non-keyed duration scenarios, memory publish + ceiling, flip krausest into `ACTIVE_GATE_TIERS`.
    - **Later:** keyed variant upstream submission.

@@ -4,11 +4,13 @@ import {
   krausestGateThreshold,
   weightedKrausestGeoMean,
 } from "./krausest/gate-eval.ts";
+import { krausestGateEnforced } from "./krausest/contract.ts";
+import { isLuxelKrausestFrameworkLabel } from "./krausest/frameworks.ts";
 
 export const BENCH_GATE_THRESHOLD = Number(process.env.LUXEL_BENCH_GATE_THRESHOLD ?? 1.08);
 
 /** Tiers enforced by `luxel bench --gate` (extend as runners land). */
-export const ACTIVE_GATE_TIERS = ["ssr", "isr", "krausest"] as const satisfies readonly BenchTier[];
+export const ACTIVE_GATE_TIERS = ["ssr", "isr"] as const satisfies readonly BenchTier[];
 
 export type BenchTier = "inp" | "ssr" | "isr" | "krausest" | "transfer";
 
@@ -183,24 +185,52 @@ export function evaluateInpTier(lines: BenchJsonLine[]): TierGateResult {
   return evaluateTier("inp", lines, latencyFactors(lines, "inp_ms"));
 }
 
+function krausestRunnerFailureReason(lines: BenchJsonLine[]): string | undefined {
+  for (const line of lines) {
+    if (
+      "status" in line &&
+      line.fixture === "krausest" &&
+      line.metric === "runner" &&
+      line.status === "pending" &&
+      line.reason
+    ) {
+      return line.reason;
+    }
+  }
+  return undefined;
+}
+
 export function evaluateKrausestTier(lines: BenchJsonLine[]): TierGateResult {
   const active = (ACTIVE_GATE_TIERS as readonly string[]).includes("krausest");
   const threshold = krausestGateThreshold();
   const evalResult = evaluateKrausestFromRawLines(lines);
   if (evalResult.durationFactors.length === 0) {
+    const hasLuxelRows = lines.some(
+      (line) =>
+        !("status" in line) &&
+        line.fixture === "krausest" &&
+        isLuxelKrausestFrameworkLabel(line.framework),
+    );
+    const runnerReason = krausestRunnerFailureReason(lines);
+    let reason = runnerReason ?? "krausest scenarios not wired";
+    if (!runnerReason && hasLuxelRows) {
+      reason =
+        "krausest luxel rows present — missing comparison framework results (vendor frameworks not built)";
+    }
     return {
       tier: "krausest",
       status: active ? "pending" : "inactive",
       threshold,
-      reason: "krausest scenarios not wired",
+      reason,
     };
   }
   const geo = weightedKrausestGeoMean(evalResult.durationFactors);
   const med = median(evalResult.durationFactors.map((entry) => entry.factor));
   const memoryOk = evalResult.memoryFailures.length === 0;
   const durationOk = geo <= threshold;
+  const enforced = krausestGateEnforced();
   const status: TierGateStatus =
-    durationOk && memoryOk ? "pass" : active ? "fail" : "inactive";
+    memoryOk && (!enforced || durationOk) ? "pass" : active ? "fail" : "inactive";
   return {
     tier: "krausest",
     status: active ? status : "inactive",
@@ -208,7 +238,11 @@ export function evaluateKrausestTier(lines: BenchJsonLine[]): TierGateResult {
     geo_mean_factor: geo,
     median_factor: med,
     frameworks: evalResult.frameworks,
-    reason: memoryOk ? undefined : `memory ceiling: ${evalResult.memoryFailures.join(", ")}`,
+    reason: !memoryOk
+      ? `memory ceiling: ${evalResult.memoryFailures.join(", ")}`
+      : enforced && !durationOk
+        ? `duration geo-mean ${geo.toFixed(3)} > ${threshold}`
+        : undefined,
   };
 }
 

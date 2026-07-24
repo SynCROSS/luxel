@@ -1,6 +1,7 @@
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { existsSync } from "node:fs";
+import * as esbuild from "esbuild";
 import {
   serializeLuxelData,
   serializeLuxelHydration,
@@ -30,12 +31,12 @@ function krausestShellHtml(dataScript: string, hydrationScript: string): string 
         <div class="col-md-6"><h1>Luxel</h1></div>
         <div class="col-md-6">
           <div class="row">
-            <div class="col-sm-6 smallpad"><button type="button" class="btn btn-primary btn-block" id="run">Create 1,000 rows</button></div>
-            <div class="col-sm-6 smallpad"><button type="button" class="btn btn-primary btn-block" id="runlots">Create 10,000 rows</button></div>
-            <div class="col-sm-6 smallpad"><button type="button" class="btn btn-primary btn-block" id="add">Append 1,000 rows</button></div>
-            <div class="col-sm-6 smallpad"><button type="button" class="btn btn-primary btn-block" id="update">Update every 10th row</button></div>
-            <div class="col-sm-6 smallpad"><button type="button" class="btn btn-primary btn-block" id="clear">Clear</button></div>
-            <div class="col-sm-6 smallpad"><button type="button" class="btn btn-primary btn-block" id="swaprows">Swap Rows</button></div>
+            <div class="col-sm-6 smallpad"><button type="button" class="btn btn-primary btn-block" id="run" data-luxel-click="run">Create 1,000 rows</button></div>
+            <div class="col-sm-6 smallpad"><button type="button" class="btn btn-primary btn-block" id="runlots" data-luxel-click="runLots">Create 10,000 rows</button></div>
+            <div class="col-sm-6 smallpad"><button type="button" class="btn btn-primary btn-block" id="add" data-luxel-click="add">Append 1,000 rows</button></div>
+            <div class="col-sm-6 smallpad"><button type="button" class="btn btn-primary btn-block" id="update" data-luxel-click="update">Update every 10th row</button></div>
+            <div class="col-sm-6 smallpad"><button type="button" class="btn btn-primary btn-block" id="clear" data-luxel-click="clearRows">Clear</button></div>
+            <div class="col-sm-6 smallpad"><button type="button" class="btn btn-primary btn-block" id="swaprows" data-luxel-click="swapRows">Swap Rows</button></div>
           </div>
         </div>
       </div>
@@ -85,7 +86,7 @@ async function main(): Promise<void> {
   const dataScript = serializeLuxelData({});
   const hydrationScript = serializeLuxelHydration({
     routeId: route.id,
-    bindings: route.bindings,
+    bindings: [],
     boundaries: route.hydration.map((boundary) => ({
       id: boundary.id,
       directive: boundary.directive,
@@ -95,11 +96,20 @@ async function main(): Promise<void> {
 
   await rm(submoduleLuxel, { recursive: true, force: true });
   await mkdir(join(submoduleLuxel, "assets"), { recursive: true });
-  await cp(join(dist, "assets", "client.dev0.js"), join(submoduleLuxel, "assets/client.dev0.js"));
+  // Minify client for krausest size/memory/first-paint (#126) — example build ships unminified.
+  const clientRaw = await readFile(join(dist, "assets", "client.dev0.js"), "utf8");
+  const clientMin = await esbuild.transform(clientRaw, {
+    minify: true,
+    target: "es2020",
+    legalComments: "none",
+  });
+  await writeFile(join(submoduleLuxel, "assets/client.dev0.js"), clientMin.code);
   await cp(join(templateDir, "package.json"), join(submoduleLuxel, "package.json"));
   await cp(join(templateDir, "package-lock.json"), join(submoduleLuxel, "package-lock.json"));
   await writeFile(join(submoduleLuxel, "index.html"), krausestShellHtml(dataScript, hydrationScript), "utf8");
-  console.log(`synced krausest CSR shell -> ${submoduleLuxel}`);
+  console.log(
+    `synced krausest CSR shell -> ${submoduleLuxel} (client ${clientRaw.length} -> ${clientMin.code.length} bytes)`,
+  );
 }
 
 await main();

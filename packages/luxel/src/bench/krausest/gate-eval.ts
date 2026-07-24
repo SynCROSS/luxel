@@ -10,6 +10,7 @@ import {
   krausestScenarioMetricId,
   type KrausestDurationScenario,
 } from "./contract.ts";
+import { isLuxelKrausestFrameworkLabel } from "./frameworks.ts";
 
 export type KrausestGateEval = {
   durationFactors: Array<{ factor: number; weight: number }>;
@@ -39,11 +40,12 @@ export function evaluateKrausestFromRawLines(lines: BenchJsonLine[]): KrausestGa
       if (!line.framework) continue;
       byFramework.set(line.framework, line.value);
     }
-    if (!byFramework.has("luxel")) continue;
+    const luxelFramework = [...byFramework.keys()].find(isLuxelKrausestFrameworkLabel);
+    if (!luxelFramework) continue;
     const executed = [...byFramework.keys()];
     if (executed.length < 2) continue;
     const fastest = Math.min(...executed.map((f) => byFramework.get(f)!));
-    const luxel = byFramework.get("luxel")!;
+    const luxel = byFramework.get(luxelFramework)!;
     durationFactors.push({
       factor: luxel / fastest,
       weight: KRAUSEST_SCENARIO_WEIGHTS[scenario as KrausestDurationScenario],
@@ -58,11 +60,12 @@ export function evaluateKrausestFromRawLines(lines: BenchJsonLine[]): KrausestGa
       if (!line.framework) continue;
       byFramework.set(line.framework, line.value);
     }
-    if (!byFramework.has("luxel")) continue;
+    const luxelFramework = [...byFramework.keys()].find(isLuxelKrausestFrameworkLabel);
+    if (!luxelFramework) continue;
     const executed = [...byFramework.keys()];
     if (executed.length < 2) continue;
     const fastest = Math.min(...executed.map((f) => byFramework.get(f)!));
-    const luxel = byFramework.get("luxel")!;
+    const luxel = byFramework.get(luxelFramework)!;
     if (luxel / fastest > KRAUSEST_MEMORY_CEILING) {
       memoryFailures.push(`${scenario}:${(luxel / fastest).toFixed(3)}`);
     }

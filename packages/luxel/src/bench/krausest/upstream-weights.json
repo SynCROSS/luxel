@@ -1,5 +1,5 @@
 {
-  "pin": "chrome148",
+  "pin": "chrome150",
   "source": "https://github.com/krausest/js-framework-benchmark/wiki/Computation-of-the-weighted-geometric-mean",
   "weights": {
     "01_run1k": 0.64,

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { compileRoute } from "../src/compiler/compile-route.ts";
 import { LuxelCompileError } from "../src/compiler/diagnostics.ts";
 import { compileTemplateIr } from "../src/compiler/template-ir.ts";
+import { codegenAttachModule } from "../src/compiler/codegen-attach.ts";
 import { createLoadContext } from "../src/resource-store/load-context.ts";
 import { ResourceStore } from "../src/resource-store/store.ts";
 
@@ -147,5 +148,37 @@ export async function load(ctx) {
 
     expect(route.serverModuleSrc).toMatch(/for\s*\(/);
     expect(route.serverModuleSrc).not.toContain('"kind":"forLoop"');
+  });
+
+  test("client attach uses cloneNode row template + delegated clicks", () => {
+    const source = `<template>
+  <div hydrate:load>
+    <tbody>
+      {#each rows as row}
+      <tr class="{row.trClass}">
+        <td class="col-md-1">{row.id}</td>
+        <td class="col-md-4"><a on:click={selectRow}>{row.label}</a></td>
+      </tr>
+      {/each}
+    </tbody>
+  </div>
+</template>
+<script>
+const rows = signal([]);
+function selectRow() {}
+</script>
+`;
+    const { renderIr } = compileTemplateIr(source);
+    const attach = codegenAttachModule(renderIr);
+    expect(attach).toContain("cloneNode(true)");
+    expect(attach).toContain("bindDelegatedClicks");
+    expect(attach).toContain("data-luxel-click");
+    expect(attach).toContain('.className = "col-md-1"');
+    expect(attach).toContain("WeakMap");
+    expect(attach).toContain("_row_cache");
+    expect(attach).toContain("vals[");
+    expect(attach).toContain("nodeValue");
+    expect(attach).toMatch(/function create_\w+_row[\s\S]*?_row_cache\.set\(row/);
+    expect(attach).not.toMatch(/bindClick\(row_/);
   });
 });

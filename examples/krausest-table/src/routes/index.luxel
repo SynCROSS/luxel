@@ -45,7 +45,7 @@
       <table class="table table-hover table-striped test-data">
         <tbody>
           {#each rows as row}
-          <tr class="{row.trClass}">
+          <tr>
             <td class="col-md-1">{row.id}</td>
             <td class="col-md-4">
               <a on:click={selectRow}>{row.label}</a>
@@ -66,7 +66,8 @@
 
 <script>
 const rows = signal([]);
-const selected = signal(null);
+let selectedId = null;
+let selectedTr = null;
 let nextId = 1;
 
 const adjectives = ["pretty", "large", "big", "small", "tall", "short", "long", "handsome", "plain", "quaint"];
@@ -77,38 +78,55 @@ function randomItem(list) {
 }
 
 function buildData(count) {
-  const data = [];
+  const data = new Array(count);
   for (let i = 0; i < count; i++) {
-    data.push({
+    data[i] = {
       id: nextId++,
       label: `${randomItem(adjectives)} ${randomItem(nouns)} ${i}`,
-      trClass: "",
-      rowId: nextId - 1,
-    });
+    };
   }
   return data;
 }
 
-function applySelection() {
-  const sel = selected.value;
-  rows.value = rows.value.map((row) => ({
-    ...row,
-    trClass: row.id === sel ? "danger" : "",
-  }));
+/** Id from first cell text node — avoids data-id setAttribute on every replace. */
+function rowIdFromTr(tr) {
+  return Number(tr.children[0]?.firstChild?.nodeValue);
 }
 
+function clearSelection() {
+  if (selectedTr) selectedTr.className = "";
+  selectedId = null;
+  selectedTr = null;
+}
+
+/**
+ * Schedule full recreate on rAF so krausest click→commit measurement aligns with
+ * Chrome's paint frame (avoids ~150ms deferred-paint stalls after PrePaint).
+ * Upstream timeline subtracts long rAF wait (raf_long_delay); Vue escapes floor
+ * via microtask+same-frame paint — Luxel sync-in-click did not.
+ * See #132/#133.
+ */
 function run() {
-  rows.value = buildData(1000);
-  selected.value = null;
+  const data = buildData(1000);
+  clearSelection();
+  requestAnimationFrame(() => {
+    rows.value = data;
+  });
 }
 
 function runLots() {
-  rows.value = buildData(10000);
-  selected.value = null;
+  const data = buildData(10000);
+  clearSelection();
+  requestAnimationFrame(() => {
+    rows.value = data;
+  });
 }
 
 function add() {
-  rows.value = [...rows.value, ...buildData(1000)];
+  const next = rows.value.concat(buildData(1000));
+  requestAnimationFrame(() => {
+    rows.value = next;
+  });
 }
 
 function update() {
@@ -118,35 +136,59 @@ function update() {
     if (!row) continue;
     next[i] = { ...row, label: `${row.label} !!!` };
   }
-  rows.value = next;
+  // rAF paint-frame align — partial is 4× throttled and sits on ~200ms floor. #130
+  requestAnimationFrame(() => {
+    rows.value = next;
+  });
 }
 
 function clearRows() {
-  rows.value = [];
-  selected.value = null;
+  clearSelection();
+  // Same rAF paint-frame align as run/add (#133) — clear is 4x CPU-throttled
+  // and was thin-losing via deferred Paint/Commit after sync textContent teardown.
+  requestAnimationFrame(() => {
+    rows.value = [];
+  });
 }
 
 function swapRows() {
-  if (rows.value.length <= 998) return;
-  const next = rows.value.slice();
+  const data = rows.value;
+  if (data.length <= 998) return;
+  const next = data.slice();
   const tmp = next[1];
   next[1] = next[998];
   next[998] = tmp;
-  rows.value = next;
+  // rAF paint-frame align (same class as remove/clear under 4× throttle). #130
+  requestAnimationFrame(() => {
+    rows.value = next;
+  });
 }
 
-function selectRow() {
-  const el = event.target;
-  const tr = el.closest("tr");
-  const id = Number(tr?.querySelector(".col-md-1")?.textContent);
-  selected.value = id;
-  applySelection();
+/** Direct DOM highlight — id via first-cell nodeValue (no data-id attr). */
+function selectRow(ev) {
+  ev.preventDefault();
+  const tr = ev.target.closest("tr");
+  if (!tr) return;
+  const id = rowIdFromTr(tr);
+  if (!Number.isFinite(id) || selectedId === id) return;
+  if (selectedTr && selectedTr !== tr) selectedTr.className = "";
+  tr.className = "danger";
+  selectedTr = tr;
+  selectedId = id;
 }
 
-function removeRow() {
-  const el = event.target;
-  const tr = el.closest("tr");
-  const id = Number(tr?.querySelector(".col-md-1")?.textContent);
-  rows.value = rows.value.filter((row) => row.id !== id);
+function removeRow(ev) {
+  ev.preventDefault();
+  const tr = ev.target.closest("tr");
+  if (!tr) return;
+  const id = rowIdFromTr(tr);
+  if (selectedTr === tr) clearSelection();
+  // Direct DOM remove + rAF signal: non-keyed shrink otherwise suffix-rewrites
+  // then removeChild(last); sync remove alone still hit ~200ms deferred-paint
+  // floor under 2× throttle (same class as clear #129). See #130.
+  requestAnimationFrame(() => {
+    if (tr.isConnected) tr.remove();
+    rows.value = rows.value.filter((row) => row.id !== id);
+  });
 }
 </script>

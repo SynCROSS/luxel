@@ -18,6 +18,10 @@ export function codegenAttachModule(ir: RenderIr): string {
 
   const helperLines = forLoops.length > 0 ? codegenForLoopAttachHelpers(forLoops) : [];
   const attachBodyLines: string[] = [];
+  const rowCtxLines =
+    forLoops.length > 0
+      ? [`let rowCtx: ${ctxType};`, ``]
+      : [];
 
   for (const b of textBinds) {
     attachBodyLines.push(
@@ -28,7 +32,7 @@ export function codegenAttachModule(ir: RenderIr): string {
   for (const b of clickBinds) {
     attachBodyLines.push(
       `  for (const _el of queryLuxelAttr(root, "data-luxel-click", "${b.expr}")) {`,
-      `    bindClick(_el, ctx.${b.expr} as () => void);`,
+      `    bindClick(_el, ctx.${b.expr} as (event: MouseEvent) => void);`,
       `  }`,
     );
   }
@@ -37,15 +41,17 @@ export function codegenAttachModule(ir: RenderIr): string {
   }
 
   return [
-    `import { bindTextSignal, bindClick, queryLuxelAttr, queryLuxelAttrFirst } from "../../../../runtime/bind.ts";`,
+    `import { bindTextSignal, bindClick, bindDelegatedClicks, queryLuxelAttr, queryLuxelAttrFirst } from "../../../../runtime/bind.ts";`,
     `import { effect } from "../../../../runtime/signal.ts";`,
     `import { reconcileNonKeyedList } from "../../../../runtime/list-reconcile.ts";`,
     `import { reconcileKeyedList } from "../../../../runtime/list-reconcile-keyed.ts";`,
     `import type { Signal } from "../../../../runtime/signal.ts";`,
     ``,
+    ...rowCtxLines,
     ...helperLines,
     ``,
     `export function attach(root: HTMLElement, ctx: ${ctxType}): void {`,
+    ...(forLoops.length > 0 ? [`  rowCtx = ctx;`] : []),
     ...attachBodyLines,
     `}`,
     ``,
