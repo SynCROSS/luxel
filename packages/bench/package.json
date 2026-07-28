@@ -9,7 +9,7 @@
     "@playwright/test": "^1.52.0",
     "@solidjs/start": "^1.1.0",
     "@sveltejs/adapter-node": "^5.2.12",
-    "@sveltejs/kit": "^2.63.0",
+    "@sveltejs/kit": "^2.69.1",
     "@sveltejs/vite-plugin-svelte": "^5.0.3",
     "@vitejs/plugin-react": "^4.4.1",
     "@vitejs/plugin-vue": "^5.2.4",
